@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { methodApi } from '@/api/method'
 import { requirementApi } from '@/api/requirement'
-import { Search, Edit, Trash2, Refresh, Plus } from '@element-plus/icons-vue'
+import { Search, Edit, Delete, Refresh, Plus } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -142,7 +142,7 @@ onMounted(() => {
                 <Edit />
               </button>
               <button class="action-btn delete" @click="handleDelete(method.id)">
-                <Trash2 />
+                <Delete />
               </button>
             </td>
           </tr>

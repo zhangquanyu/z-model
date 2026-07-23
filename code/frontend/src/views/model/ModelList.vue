@@ -1,86 +1,87 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { requirementApi } from '@/api/requirement'
-import { Search, Edit, Trash2, Eye, Refresh } from '@element-plus/icons-vue'
+import { modelApi } from '@/api/model'
+import { Search, Edit, Delete, View, Refresh, Setting } from '@element-plus/icons-vue'
 
 const router = useRouter()
-const requirements = ref<any[]>([])
+const models = ref<any[]>([])
 const total = ref(0)
 const page = ref(0)
 const size = ref(10)
 const searchName = ref('')
 
-const statusMap: Record<string, string> = {
-  DRAFT: '草稿',
-  PENDING: '待审批',
-  APPROVED: '已批准',
-  REJECTED: '已拒绝'
-}
-
-const loadRequirements = async () => {
+const loadModels = async () => {
   try {
     const params: any = { page: page.value, size: size.value }
     if (searchName.value) {
       params.name = searchName.value
     }
-    const res = await requirementApi.list(params)
-    requirements.value = res.content || []
+    const res = await modelApi.list(params)
+    models.value = res.content || []
     total.value = res.totalElements || 0
   } catch (error) {
-    console.error('Failed to load requirements:', error)
+    console.error('Failed to load models:', error)
   }
 }
 
 const handleSearch = () => {
   page.value = 0
-  loadRequirements()
+  loadModels()
 }
 
 const handlePageChange = (newPage: number) => {
   page.value = newPage
-  loadRequirements()
+  loadModels()
 }
 
 const handleView = (id: string) => {
-  router.push(`/requirements/${id}`)
+  router.push(`/models/${id}`)
 }
 
 const handleEdit = (id: string) => {
-  router.push(`/requirements/${id}/edit`)
+  router.push(`/models/${id}/edit`)
 }
 
 const handleDelete = async (id: string) => {
-  if (confirm('确定要删除这个需求吗？')) {
+  if (confirm('确定要删除这个模型吗？')) {
     try {
-      await requirementApi.delete(id)
-      loadRequirements()
+      await modelApi.delete(id)
+      loadModels()
     } catch (error) {
-      console.error('Failed to delete requirement:', error)
+      console.error('Failed to delete model:', error)
     }
   }
+}
+
+const handleManageProperties = (id: string) => {
+  router.push(`/models/${id}/properties`)
+}
+
+const handleManageMethods = (id: string) => {
+  router.push(`/models/${id}/methods`)
 }
 
 const handleRefresh = () => {
   searchName.value = ''
   page.value = 0
-  loadRequirements()
+  loadModels()
 }
 
 onMounted(() => {
-  loadRequirements()
+  loadModels()
 })
 </script>
 
 <template>
-  <div class="requirement-list">
+  <div class="model-list">
     <div class="search-bar">
       <div class="search-input-wrapper">
         <Search class="search-icon" />
         <input
           v-model="searchName"
           type="text"
-          placeholder="搜索需求名称..."
+          placeholder="搜索模型名称..."
           @keyup.enter="handleSearch"
         />
       </div>
@@ -94,41 +95,44 @@ onMounted(() => {
       <table class="data-table">
         <thead>
           <tr>
-            <th>需求名称</th>
-            <th>需求编号</th>
+            <th>模型名称</th>
+            <th>模型编号</th>
             <th>描述</th>
-            <th>状态</th>
-            <th>优先级</th>
+            <th>关联需求</th>
+            <th>属性数量</th>
+            <th>方法数量</th>
             <th>创建时间</th>
             <th>操作</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="req in requirements" :key="req.id">
-            <td>{{ req.name }}</td>
-            <td>{{ req.code }}</td>
-            <td class="description-cell">{{ req.description || '-' }}</td>
+          <tr v-for="model in models" :key="model.id">
+            <td>{{ model.name }}</td>
+            <td>{{ model.code }}</td>
+            <td class="description-cell">{{ model.description || '-' }}</td>
             <td>
-              <span :class="'status-tag ' + req.status.toLowerCase()">
-                {{ statusMap[req.status] || req.status }}
-              </span>
+              <span class="tag">{{ model.requirements?.length || 0 }}个</span>
             </td>
-            <td>{{ req.priority }}</td>
-            <td>{{ req.createdAt?.slice(0, 10) }}</td>
+            <td>{{ model.properties?.length || 0 }}</td>
+            <td>{{ model.methods?.length || 0 }}</td>
+            <td>{{ model.createdAt?.slice(0, 10) }}</td>
             <td class="actions">
-              <button class="action-btn view" @click="handleView(req.id)">
-                <Eye />
+              <button class="action-btn view" @click="handleView(model.id)">
+                <View />
               </button>
-              <button class="action-btn edit" @click="handleEdit(req.id)">
+              <button class="action-btn edit" @click="handleEdit(model.id)">
                 <Edit />
               </button>
-              <button class="action-btn delete" @click="handleDelete(req.id)">
-                <Trash2 />
+              <button class="action-btn property" @click="handleManageProperties(model.id)">
+                <Setting />
+              </button>
+              <button class="action-btn delete" @click="handleDelete(model.id)">
+                <Delete />
               </button>
             </td>
           </tr>
-          <tr v-if="requirements.length === 0">
-            <td colspan="7" class="empty-row">暂无数据</td>
+          <tr v-if="models.length === 0">
+            <td colspan="8" class="empty-row">暂无数据</td>
           </tr>
         </tbody>
       </table>
@@ -158,7 +162,7 @@ onMounted(() => {
 </template>
 
 <style lang="scss" scoped>
-.requirement-list {
+.model-list {
   background-color: white;
   border-radius: 16px;
   padding: 24px;
@@ -185,6 +189,13 @@ onMounted(() => {
   font-size: 18px;
   color: #999;
   margin-right: 12px;
+  width: 18px;
+  height: 18px;
+  
+  & svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
 }
 
 .search-input-wrapper input {
@@ -262,31 +273,13 @@ onMounted(() => {
   white-space: nowrap;
 }
 
-.status-tag {
+.tag {
   padding: 4px 12px;
+  background-color: #e8f5e9;
+  color: #4caf50;
   border-radius: 20px;
   font-size: 12px;
   font-weight: 500;
-  
-  &.draft {
-    background-color: #fff3e0;
-    color: #ff9800;
-  }
-  
-  &.pending {
-    background-color: #e3f2fd;
-    color: #2196f3;
-  }
-  
-  &.approved {
-    background-color: #e8f5e9;
-    color: #4caf50;
-  }
-  
-  &.rejected {
-    background-color: #ffebee;
-    color: #f44336;
-  }
 }
 
 .actions {
@@ -322,6 +315,18 @@ onMounted(() => {
     
     &:hover {
       background-color: #ffe0b2;
+    }
+  }
+  
+  &.property {
+    background-color: #e8f5e9;
+    
+    svg {
+      color: #4caf50;
+    }
+    
+    &:hover {
+      background-color: #c8e6c9;
     }
   }
   

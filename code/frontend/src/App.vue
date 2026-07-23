@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { useRouter, useRoute } from 'vue-router'
 import {
-  LayoutDashboard,
-  FileText,
+  Monitor,
+  Document,
   Box,
-  Cog,
-  Activity,
+  Setting,
+  TrendCharts,
   Plus,
-  ChevronLeft,
-  ChevronRight
+  ArrowLeft,
+  ArrowRight
 } from '@element-plus/icons-vue'
 import { ref } from 'vue'
 
@@ -17,10 +17,10 @@ const route = useRoute()
 const collapsed = ref(false)
 
 const menuItems = [
-  { path: '/', name: '仪表盘', icon: LayoutDashboard },
-  { path: '/requirements', name: '需求管理', icon: FileText },
+  { path: '/', name: '仪表盘', icon: Monitor },
+  { path: '/requirements', name: '需求管理', icon: Document },
   { path: '/models', name: '模型管理', icon: Box },
-  { path: '/events', name: '事件流水', icon: Activity }
+  { path: '/events', name: '事件流水', icon: TrendCharts }
 ]
 
 const isActive = (path: string) => {
@@ -37,7 +37,7 @@ const handleNavigation = (path: string) => {
     <aside class="sidebar" :class="{ collapsed }">
       <div class="sidebar-header">
         <div class="logo">
-          <Cog class="logo-icon" />
+          <Setting class="logo-icon" />
           <span v-if="!collapsed" class="logo-text">Z-Model</span>
         </div>
       </div>
@@ -57,8 +57,8 @@ const handleNavigation = (path: string) => {
       
       <div class="sidebar-footer">
         <button class="collapse-btn" @click="collapsed = !collapsed">
-          <ChevronLeft v-if="!collapsed" />
-          <ChevronRight v-else />
+          <ArrowLeft v-if="!collapsed" />
+          <ArrowRight v-else />
         </button>
       </div>
     </aside>
@@ -123,6 +123,28 @@ const handleNavigation = (path: string) => {
   --text-light: #999;
 }
 
+/* 强制缩小所有图标 */
+.sidebar svg {
+  max-width: 24px !important;
+  max-height: 24px !important;
+  width: 24px !important;
+  height: 24px !important;
+}
+
+.sidebar .logo-icon svg {
+  max-width: 24px !important;
+  max-height: 24px !important;
+  width: 24px !important;
+  height: 24px !important;
+}
+
+.sidebar .menu-icon svg {
+  max-width: 20px !important;
+  max-height: 20px !important;
+  width: 20px !important;
+  height: 20px !important;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -170,8 +192,18 @@ body {
 }
 
 .logo-icon {
-  font-size: 28px;
+  font-size: 20px !important;
   color: var(--secondary-color);
+  width: 24px !important;
+  height: 24px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  
+  & svg {
+    width: 24px !important;
+    height: 24px !important;
+  }
 }
 
 .logo-text {
@@ -204,8 +236,18 @@ body {
 }
 
 .menu-icon {
-  font-size: 20px;
+  font-size: 16px !important;
   flex-shrink: 0;
+  width: 20px !important;
+  height: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  
+  & svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
 }
 
 .menu-text {
@@ -289,6 +331,13 @@ body {
 
 .btn-icon {
   font-size: 16px;
+  width: 16px;
+  height: 16px;
+  
+  & svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
 }
 
 .content-wrapper {

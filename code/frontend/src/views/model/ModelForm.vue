@@ -1,57 +1,37 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { propertyApi } from '@/api/property'
+import { modelApi } from '@/api/model'
 import { requirementApi } from '@/api/requirement'
-import { ArrowLeft, Save, SaveAndContinue } from '@element-plus/icons-vue'
+import { ArrowLeft, Save, Plus, X } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
-const modelId = route.params.modelId as string
 const isEdit = computed(() => !!route.params.id)
 
 const form = ref({
   name: '',
   code: '',
-  dataType: 'STRING',
-  requirementId: '',
-  required: false,
-  defaultValue: '',
-  description: ''
+  description: '',
+  requirementIds: [] as string[]
 })
 
-const requirements = ref<any[]>([])
-
-const dataTypeOptions = [
-  { value: 'STRING', label: '字符串' },
-  { value: 'INTEGER', label: '整数' },
-  { value: 'LONG', label: '长整数' },
-  { value: 'DOUBLE', label: '浮点数' },
-  { value: 'BOOLEAN', label: '布尔值' },
-  { value: 'DATE', label: '日期' },
-  { value: 'DATETIME', label: '日期时间' },
-  { value: 'ENUM', label: '枚举' },
-  { value: 'OBJECT', label: '对象' },
-  { value: 'ARRAY', label: '数组' }
-]
+const allRequirements = ref<any[]>([])
 
 onMounted(async () => {
   await loadRequirements()
   
   if (isEdit.value && route.params.id) {
     try {
-      const res = await propertyApi.get(route.params.id as string)
+      const res = await modelApi.get(route.params.id as string)
       form.value = {
         name: res.name || '',
         code: res.code || '',
-        dataType: res.dataType || 'STRING',
-        requirementId: res.requirement?.id || '',
-        required: res.required || false,
-        defaultValue: res.defaultValue || '',
-        description: res.description || ''
+        description: res.description || '',
+        requirementIds: res.requirements?.map((r: any) => r.id) || []
       }
     } catch (error) {
-      console.error('Failed to load property:', error)
+      console.error('Failed to load model:', error)
     }
   }
 })
@@ -59,47 +39,68 @@ onMounted(async () => {
 const loadRequirements = async () => {
   try {
     const res = await requirementApi.list({ page: 0, size: 100 })
-    requirements.value = res.content || []
+    allRequirements.value = res.content || []
   } catch (error) {
     console.error('Failed to load requirements:', error)
   }
 }
 
+const addRequirement = (id: string) => {
+  if (!form.value.requirementIds.includes(id)) {
+    form.value.requirementIds.push(id)
+  }
+}
+
+const removeRequirement = (id: string) => {
+  const index = form.value.requirementIds.indexOf(id)
+  if (index > -1) {
+    form.value.requirementIds.splice(index, 1)
+  }
+}
+
+const getRequirementName = (id: string) => {
+  const req = allRequirements.value.find(r => r.id === id)
+  return req?.name || id
+}
+
+const availableRequirements = computed(() => {
+  return allRequirements.value.filter(r => !form.value.requirementIds.includes(r.id))
+})
+
 const handleSubmit = async (stay = false) => {
   try {
     const data = {
       ...form.value,
-      modelId,
-      requirement: form.value.requirementId ? { id: form.value.requirementId } : null
+      requirements: form.value.requirementIds.map(id => ({ id }))
     }
     
     if (isEdit.value && route.params.id) {
-      await propertyApi.update(route.params.id as string, data)
+      await modelApi.update(route.params.id as string, data)
     } else {
-      await propertyApi.create(data)
+      await modelApi.create(data)
     }
     
     if (!stay) {
-      router.push(`/models/${modelId}/properties`)
+      router.push('/models')
     }
   } catch (error) {
-    console.error('Failed to save property:', error)
+    console.error('Failed to save model:', error)
   }
 }
 
 const handleBack = () => {
-  router.push(`/models/${modelId}/properties`)
+  router.push('/models')
 }
 </script>
 
 <template>
-  <div class="property-form">
+  <div class="model-form">
     <div class="form-header">
       <button class="back-btn" @click="handleBack">
         <ArrowLeft />
         <span>返回</span>
       </button>
-      <h2>{{ isEdit ? '编辑属性' : '新建属性' }}</h2>
+      <h2>{{ isEdit ? '编辑模型' : '新建模型' }}</h2>
     </div>
     
     <div class="form-container">
@@ -108,17 +109,17 @@ const handleBack = () => {
         
         <div class="form-row">
           <div class="form-group">
-            <label>属性名称 <span class="required">*</span></label>
+            <label>模型名称 <span class="required">*</span></label>
             <input
               v-model="form.name"
               type="text"
-              placeholder="请输入属性名称"
+              placeholder="请输入模型名称"
               required
             />
           </div>
           
           <div class="form-group">
-            <label>属性编码</label>
+            <label>模型编号</label>
             <input
               v-model="form.code"
               type="text"
@@ -128,54 +129,40 @@ const handleBack = () => {
           </div>
         </div>
         
-        <div class="form-row">
-          <div class="form-group">
-            <label>数据类型 <span class="required">*</span></label>
-            <select v-model="form.dataType" required>
-              <option v-for="opt in dataTypeOptions" :key="opt.value" :value="opt.value">
-                {{ opt.label }}
-              </option>
-            </select>
-          </div>
-          
-          <div class="form-group">
-            <label>关联需求</label>
-            <select v-model="form.requirementId">
-              <option value="">选择需求</option>
-              <option v-for="req in requirements" :key="req.id" :value="req.id">
-                {{ req.name }} ({{ req.code }})
-              </option>
-            </select>
-          </div>
-        </div>
-        
-        <div class="form-row">
-          <div class="form-group">
-            <label>是否必填</label>
-            <label class="checkbox-label">
-              <input type="checkbox" v-model="form.required" />
-              <span class="checkmark"></span>
-              必填
-            </label>
-          </div>
-          
-          <div class="form-group">
-            <label>默认值</label>
-            <input
-              v-model="form.defaultValue"
-              type="text"
-              placeholder="请输入默认值"
-            />
-          </div>
-        </div>
-        
         <div class="form-group full-width">
           <label>描述</label>
           <textarea
             v-model="form.description"
             rows="4"
-            placeholder="请输入属性描述"
+            placeholder="请输入模型描述"
           ></textarea>
+        </div>
+      </div>
+      
+      <div class="form-section">
+        <h3>关联需求</h3>
+        
+        <div v-if="availableRequirements.length > 0" class="requirement-selector">
+          <select @change="addRequirement(($event.target as HTMLSelectElement).value)" class="requirement-select">
+            <option value="">选择需求</option>
+            <option v-for="req in availableRequirements" :key="req.id" :value="req.id">
+              {{ req.name }} ({{ req.code }})
+            </option>
+          </select>
+        </div>
+        
+        <div v-if="form.requirementIds.length > 0" class="selected-requirements">
+          <div v-for="id in form.requirementIds" :key="id" class="selected-item">
+            <span>{{ getRequirementName(id) }}</span>
+            <button class="remove-btn" @click="removeRequirement(id)">
+              <X />
+            </button>
+          </div>
+        </div>
+        
+        <div v-if="form.requirementIds.length === 0" class="empty-hint">
+          <Plus class="hint-icon" />
+          <span>暂无关联需求，请选择需求</span>
         </div>
       </div>
     </div>
@@ -187,7 +174,7 @@ const handleBack = () => {
         <span>保存并返回</span>
       </button>
       <button class="btn btn-outline" @click="handleSubmit(true)">
-        <SaveAndContinue />
+        <Save />
         <span>保存并继续</span>
       </button>
     </div>
@@ -195,7 +182,7 @@ const handleBack = () => {
 </template>
 
 <style lang="scss" scoped>
-.property-form {
+.model-form {
   background-color: white;
   border-radius: 16px;
   padding: 24px;
@@ -307,46 +294,73 @@ const handleBack = () => {
   resize: vertical;
 }
 
-.checkbox-label {
+.requirement-selector {
+  margin-bottom: 20px;
+}
+
+.requirement-select {
+  padding: 12px 16px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  font-size: 14px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s ease;
+  
+  &:focus {
+    border-color: #1e3a5f;
+  }
+}
+
+.selected-requirements {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.selected-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  cursor: pointer;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: #e8f5e9;
+  border-radius: 20px;
   
-  input {
-    display: none;
+  span {
+    font-size: 14px;
+    color: #333;
   }
   
-  .checkmark {
-    width: 20px;
-    height: 20px;
-    border: 2px solid #ddd;
-    border-radius: 4px;
-    position: relative;
-    transition: all 0.2s ease;
+  .remove-btn {
+    padding: 4px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: color 0.2s ease;
     
-    &::after {
-      content: '';
-      position: absolute;
-      left: 6px;
-      top: 2px;
-      width: 5px;
-      height: 10px;
-      border: solid white;
-      border-width: 0 2px 2px 0;
-      transform: rotate(45deg);
-      opacity: 0;
-      transition: opacity 0.2s ease;
+    svg {
+      font-size: 14px;
+      color: #666;
+    }
+    
+    &:hover svg {
+      color: #f44336;
     }
   }
+}
+
+.empty-hint {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 30px;
+  background-color: #fafbfc;
+  border-radius: 10px;
+  color: #999;
+  font-size: 14px;
   
-  input:checked + .checkmark {
-    background-color: #1e3a5f;
-    border-color: #1e3a5f;
-    
-    &::after {
-      opacity: 1;
-    }
+  .hint-icon {
+    font-size: 24px;
   }
 }
 

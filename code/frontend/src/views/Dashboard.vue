@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { requirementApi } from '@/api/requirement'
 import { modelApi } from '@/api/model'
 import { eventApi } from '@/api/event'
-import { FileText, Box, Activity, TrendingUp } from '@element-plus/icons-vue'
+import { Document, Box, TrendCharts, ArrowUpBold } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const stats = ref({
@@ -47,7 +47,7 @@ const handleNavigate = (path: string) => {
     <div class="stats-grid">
       <div class="stat-card" @click="handleNavigate('/requirements')">
         <div class="stat-icon requirement">
-          <FileText />
+          <Document />
         </div>
         <div class="stat-content">
           <div class="stat-value">{{ stats.requirements }}</div>
@@ -67,7 +67,7 @@ const handleNavigate = (path: string) => {
       
       <div class="stat-card" @click="handleNavigate('/events')">
         <div class="stat-icon event">
-          <Activity />
+          <TrendCharts />
         </div>
         <div class="stat-content">
           <div class="stat-value">{{ stats.events }}</div>
@@ -77,7 +77,7 @@ const handleNavigate = (path: string) => {
       
       <div class="stat-card">
         <div class="stat-icon amount">
-          <TrendingUp />
+          <ArrowUpBold />
         </div>
         <div class="stat-content">
           <div class="stat-value">¥{{ stats.totalAmount.toLocaleString() }}</div>
@@ -163,13 +163,13 @@ const handleNavigate = (path: string) => {
 }
 
 .stat-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 20px;
   color: white;
   
   &.requirement {

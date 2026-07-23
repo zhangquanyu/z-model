@@ -22,8 +22,6 @@ CREATE TABLE IF NOT EXISTS model_requirement (
     id VARCHAR(36) PRIMARY KEY COMMENT '主键ID',
     model_id VARCHAR(36) NOT NULL COMMENT '模型ID',
     requirement_id VARCHAR(36) NOT NULL COMMENT '需求ID',
-    FOREIGN KEY (model_id) REFERENCES model(id) ON DELETE CASCADE,
-    FOREIGN KEY (requirement_id) REFERENCES requirement(id) ON DELETE CASCADE,
     UNIQUE KEY uk_model_requirement (model_id, requirement_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='模型需求关联表';
 
@@ -38,9 +36,7 @@ CREATE TABLE IF NOT EXISTS property (
     default_value VARCHAR(255) COMMENT '默认值',
     description TEXT COMMENT '属性描述',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    FOREIGN KEY (model_id) REFERENCES model(id) ON DELETE CASCADE,
-    FOREIGN KEY (requirement_id) REFERENCES requirement(id) ON DELETE SET NULL
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='属性表';
 
 CREATE TABLE IF NOT EXISTS method (
@@ -51,9 +47,7 @@ CREATE TABLE IF NOT EXISTS method (
     requirement_id VARCHAR(36) COMMENT '关联需求ID',
     description TEXT COMMENT '方法描述',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    FOREIGN KEY (model_id) REFERENCES model(id) ON DELETE CASCADE,
-    FOREIGN KEY (requirement_id) REFERENCES requirement(id) ON DELETE SET NULL
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='方法表';
 
 CREATE TABLE IF NOT EXISTS method_param (
@@ -62,8 +56,6 @@ CREATE TABLE IF NOT EXISTS method_param (
     property_id VARCHAR(36) NOT NULL COMMENT '属性ID',
     param_type VARCHAR(20) NOT NULL COMMENT '参数类型(INPUT/OUTPUT)',
     sort_order INT DEFAULT 0 COMMENT '排序序号',
-    FOREIGN KEY (method_id) REFERENCES method(id) ON DELETE CASCADE,
-    FOREIGN KEY (property_id) REFERENCES property(id) ON DELETE CASCADE,
     UNIQUE KEY uk_method_property (method_id, property_id, param_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='方法参数表';
 
@@ -79,8 +71,7 @@ CREATE TABLE IF NOT EXISTS event (
     description TEXT COMMENT '事件描述',
     metadata JSON COMMENT '元数据',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    FOREIGN KEY (model_id) REFERENCES model(id) ON DELETE SET NULL
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='事件流水表';
 
 INSERT INTO requirement (id, name, code, description, status, priority) VALUES 

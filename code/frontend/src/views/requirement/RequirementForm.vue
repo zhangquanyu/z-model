@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { requirementApi } from '@/api/requirement'
-import { ArrowLeft, Save, SaveAndContinue } from '@element-plus/icons-vue'
+import { ArrowLeft, Save } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -146,7 +146,7 @@ const handleBack = () => {
         <span>保存并返回</span>
       </button>
       <button class="btn btn-outline" @click="handleSubmit(true)">
-        <SaveAndContinue />
+        <Save />
         <span>保存并继续</span>
       </button>
     </div>

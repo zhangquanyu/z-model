@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { modelApi } from '@/api/model'
-import { ArrowLeft, Settings, Code, FileText } from '@element-plus/icons-vue'
+import { ArrowLeft, Setting, Files, Document } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -104,7 +104,7 @@ const getParamNames = (params: any[], paramType: string) => {
         <h3>关联需求</h3>
         <div v-if="model.requirements?.length > 0" class="requirements-list">
           <div v-for="req in model.requirements" :key="req.id" class="requirement-item">
-            <FileText class="req-icon" />
+            <Document class="req-icon" />
             <div class="req-info">
               <div class="req-name">{{ req.name }}</div>
               <div class="req-code">{{ req.code }}</div>
@@ -125,14 +125,14 @@ const getParamNames = (params: any[], paramType: string) => {
             :class="['tab-btn', { active: activeTab === 'properties' }]" 
             @click="activeTab = 'properties'"
           >
-            <Settings />
+            <Setting />
             <span>属性列表</span>
           </button>
           <button 
             :class="['tab-btn', { active: activeTab === 'methods' }]" 
             @click="activeTab = 'methods'"
           >
-            <Code />
+            <Files />
             <span>方法列表</span>
           </button>
         </div>

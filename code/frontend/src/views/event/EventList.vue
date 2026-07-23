@@ -1,87 +1,101 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { modelApi } from '@/api/model'
-import { Search, Edit, Trash2, Eye, Refresh, Settings } from '@element-plus/icons-vue'
+import { eventApi } from '@/api/event'
+import { Search, Edit, Delete, Refresh, View } from '@element-plus/icons-vue'
 
 const router = useRouter()
-const models = ref<any[]>([])
+const events = ref<any[]>([])
 const total = ref(0)
 const page = ref(0)
 const size = ref(10)
 const searchName = ref('')
 
-const loadModels = async () => {
+const loadEvents = async () => {
   try {
     const params: any = { page: page.value, size: size.value }
     if (searchName.value) {
       params.name = searchName.value
     }
-    const res = await modelApi.list(params)
-    models.value = res.content || []
+    const res = await eventApi.list(params)
+    events.value = res.content || []
     total.value = res.totalElements || 0
   } catch (error) {
-    console.error('Failed to load models:', error)
+    console.error('Failed to load events:', error)
   }
 }
 
 const handleSearch = () => {
   page.value = 0
-  loadModels()
+  loadEvents()
 }
 
 const handlePageChange = (newPage: number) => {
   page.value = newPage
-  loadModels()
+  loadEvents()
 }
 
 const handleView = (id: string) => {
-  router.push(`/models/${id}`)
+  router.push(`/events/${id}`)
 }
 
 const handleEdit = (id: string) => {
-  router.push(`/models/${id}/edit`)
+  router.push(`/events/${id}/edit`)
 }
 
 const handleDelete = async (id: string) => {
-  if (confirm('确定要删除这个模型吗？')) {
+  if (confirm('确定要删除这个事件吗？')) {
     try {
-      await modelApi.delete(id)
-      loadModels()
+      await eventApi.delete(id)
+      loadEvents()
     } catch (error) {
-      console.error('Failed to delete model:', error)
+      console.error('Failed to delete event:', error)
     }
   }
-}
-
-const handleManageProperties = (id: string) => {
-  router.push(`/models/${id}/properties`)
-}
-
-const handleManageMethods = (id: string) => {
-  router.push(`/models/${id}/methods`)
 }
 
 const handleRefresh = () => {
   searchName.value = ''
   page.value = 0
-  loadModels()
+  loadEvents()
+}
+
+const getTypeName = (type: string) => {
+  const map: Record<string, string> = {
+    ORDER_CREATED: '订单创建',
+    ORDER_PAID: '订单支付',
+    ORDER_SHIPPED: '订单发货',
+    ORDER_COMPLETED: '订单完成',
+    PAYMENT_SUCCESS: '支付成功',
+    PAYMENT_FAILED: '支付失败',
+    REFUND_REQUESTED: '退款申请',
+    REFUND_COMPLETED: '退款完成',
+    USER_REGISTERED: '用户注册',
+    USER_LOGIN: '用户登录',
+    USER_LOGOUT: '用户登出',
+    PRODUCT_VIEWED: '商品浏览',
+    PRODUCT_ADDED: '商品加入购物车',
+    INVENTORY_LOW: '库存预警',
+    SYSTEM_ERROR: '系统错误',
+    SYSTEM_WARNING: '系统警告'
+  }
+  return map[type] || type
 }
 
 onMounted(() => {
-  loadModels()
+  loadEvents()
 })
 </script>
 
 <template>
-  <div class="model-list">
+  <div class="event-list">
     <div class="search-bar">
       <div class="search-input-wrapper">
         <Search class="search-icon" />
         <input
           v-model="searchName"
           type="text"
-          placeholder="搜索模型名称..."
+          placeholder="搜索事件名称..."
           @keyup.enter="handleSearch"
         />
       </div>
@@ -95,43 +109,42 @@ onMounted(() => {
       <table class="data-table">
         <thead>
           <tr>
-            <th>模型名称</th>
-            <th>模型编号</th>
-            <th>描述</th>
-            <th>关联需求</th>
-            <th>属性数量</th>
-            <th>方法数量</th>
-            <th>创建时间</th>
+            <th>事件名称</th>
+            <th>事件类型</th>
+            <th>关联模型</th>
+            <th>金额</th>
+            <th>数量</th>
+            <th>事件时间</th>
+            <th>状态</th>
             <th>操作</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="model in models" :key="model.id">
-            <td>{{ model.name }}</td>
-            <td>{{ model.code }}</td>
-            <td class="description-cell">{{ model.description || '-' }}</td>
+          <tr v-for="event in events" :key="event.id">
+            <td>{{ event.name }}</td>
+            <td>{{ getTypeName(event.eventType) }}</td>
+            <td>{{ event.model?.name || '-' }}</td>
+            <td>¥{{ (event.amount || 0).toLocaleString() }}</td>
+            <td>{{ event.quantity || 0 }}</td>
+            <td>{{ event.eventTime?.slice(0, 19) }}</td>
             <td>
-              <span class="tag">{{ model.requirements?.length || 0 }}个</span>
+              <span :class="'status-tag ' + event.status.toLowerCase()">
+                {{ event.status === 'SUCCESS' ? '成功' : event.status === 'FAILED' ? '失败' : event.status === 'PENDING' ? '处理中' : event.status }}
+              </span>
             </td>
-            <td>{{ model.properties?.length || 0 }}</td>
-            <td>{{ model.methods?.length || 0 }}</td>
-            <td>{{ model.createdAt?.slice(0, 10) }}</td>
             <td class="actions">
-              <button class="action-btn view" @click="handleView(model.id)">
-                <Eye />
+              <button class="action-btn view" @click="handleView(event.id)">
+                <View />
               </button>
-              <button class="action-btn edit" @click="handleEdit(model.id)">
+              <button class="action-btn edit" @click="handleEdit(event.id)">
                 <Edit />
               </button>
-              <button class="action-btn property" @click="handleManageProperties(model.id)">
-                <Settings />
-              </button>
-              <button class="action-btn delete" @click="handleDelete(model.id)">
-                <Trash2 />
+              <button class="action-btn delete" @click="handleDelete(event.id)">
+                <Delete />
               </button>
             </td>
           </tr>
-          <tr v-if="models.length === 0">
+          <tr v-if="events.length === 0">
             <td colspan="8" class="empty-row">暂无数据</td>
           </tr>
         </tbody>
@@ -162,7 +175,7 @@ onMounted(() => {
 </template>
 
 <style lang="scss" scoped>
-.model-list {
+.event-list {
   background-color: white;
   border-radius: 16px;
   padding: 24px;
@@ -189,6 +202,13 @@ onMounted(() => {
   font-size: 18px;
   color: #999;
   margin-right: 12px;
+  width: 18px;
+  height: 18px;
+  
+  & svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
 }
 
 .search-input-wrapper input {
@@ -259,20 +279,26 @@ onMounted(() => {
   font-size: 14px;
 }
 
-.description-cell {
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tag {
+.status-tag {
   padding: 4px 12px;
-  background-color: #e8f5e9;
-  color: #4caf50;
   border-radius: 20px;
   font-size: 12px;
   font-weight: 500;
+  
+  &.success {
+    background-color: #e8f5e9;
+    color: #4caf50;
+  }
+  
+  &.failed {
+    background-color: #ffebee;
+    color: #f44336;
+  }
+  
+  &.pending {
+    background-color: #e3f2fd;
+    color: #2196f3;
+  }
 }
 
 .actions {
@@ -308,18 +334,6 @@ onMounted(() => {
     
     &:hover {
       background-color: #ffe0b2;
-    }
-  }
-  
-  &.property {
-    background-color: #e8f5e9;
-    
-    svg {
-      color: #4caf50;
-    }
-    
-    &:hover {
-      background-color: #c8e6c9;
     }
   }
   
