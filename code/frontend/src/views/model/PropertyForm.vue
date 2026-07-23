@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { propertyApi } from '@/api/property'
 import { requirementApi } from '@/api/requirement'
-import { ArrowLeft, Save } from '@element-plus/icons-vue'
+import { ArrowLeft, Check } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -40,7 +40,7 @@ onMounted(async () => {
   
   if (isEdit.value && route.params.id) {
     try {
-      const res = await propertyApi.get(route.params.id as string)
+      const res = await propertyApi.getById(Number(modelId), Number(route.params.id))
       form.value = {
         name: res.name || '',
         code: res.code || '',
@@ -183,11 +183,11 @@ const handleBack = () => {
     <div class="form-actions">
       <button class="btn btn-secondary" @click="handleBack">取消</button>
       <button class="btn btn-primary" @click="handleSubmit(false)">
-        <Save />
+        <Check />
         <span>保存并返回</span>
       </button>
       <button class="btn btn-outline" @click="handleSubmit(true)">
-        <Save />
+        <Check />
         <span>保存并继续</span>
       </button>
     </div>
@@ -368,6 +368,11 @@ const handleBack = () => {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  
+  svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
   
   &.btn-primary {
     background-color: #1e3a5f;

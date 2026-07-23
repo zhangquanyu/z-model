@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { modelApi } from '@/api/model'
 import { requirementApi } from '@/api/requirement'
-import { ArrowLeft, Save, Plus, X } from '@element-plus/icons-vue'
+import { ArrowLeft, Check, Plus, Close } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -155,7 +155,7 @@ const handleBack = () => {
           <div v-for="id in form.requirementIds" :key="id" class="selected-item">
             <span>{{ getRequirementName(id) }}</span>
             <button class="remove-btn" @click="removeRequirement(id)">
-              <X />
+              <Close />
             </button>
           </div>
         </div>
@@ -170,11 +170,11 @@ const handleBack = () => {
     <div class="form-actions">
       <button class="btn btn-secondary" @click="handleBack">取消</button>
       <button class="btn btn-primary" @click="handleSubmit(false)">
-        <Save />
+        <Check />
         <span>保存并返回</span>
       </button>
       <button class="btn btn-outline" @click="handleSubmit(true)">
-        <Save />
+        <Check />
         <span>保存并继续</span>
       </button>
     </div>
@@ -361,6 +361,13 @@ const handleBack = () => {
   
   .hint-icon {
     font-size: 24px;
+    width: 24px;
+    height: 24px;
+    
+    & svg {
+      width: 24px !important;
+      height: 24px !important;
+    }
   }
 }
 
@@ -382,6 +389,11 @@ const handleBack = () => {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  
+  svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
   
   &.btn-primary {
     background-color: #1e3a5f;

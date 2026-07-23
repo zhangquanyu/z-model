@@ -16,8 +16,8 @@ export interface Property {
 }
 
 export const propertyApi = {
-  list(modelId: number) {
-    return request.get(`/models/${modelId}/properties`)
+  list(modelId: number, params?: any) {
+    return request.get(`/models/${modelId}/properties`, { params })
   },
   getById(modelId: number, propertyId: number) {
     return request.get(`/models/${modelId}/properties/${propertyId}`)

@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { eventApi } from '@/api/event'
 import { Search, Edit, Delete, Refresh, View } from '@element-plus/icons-vue'
+import { ElTooltip } from 'element-plus'
 
 const router = useRouter()
 const events = ref<any[]>([])
@@ -133,15 +134,21 @@ onMounted(() => {
               </span>
             </td>
             <td class="actions">
-              <button class="action-btn view" @click="handleView(event.id)">
-                <View />
-              </button>
-              <button class="action-btn edit" @click="handleEdit(event.id)">
-                <Edit />
-              </button>
-              <button class="action-btn delete" @click="handleDelete(event.id)">
-                <Delete />
-              </button>
+              <el-tooltip content="查看" placement="top">
+                <button class="action-btn view" @click="handleView(event.id)">
+                  <View />
+                </button>
+              </el-tooltip>
+              <el-tooltip content="编辑" placement="top">
+                <button class="action-btn edit" @click="handleEdit(event.id)">
+                  <Edit />
+                </button>
+              </el-tooltip>
+              <el-tooltip content="删除" placement="top">
+                <button class="action-btn delete" @click="handleDelete(event.id)">
+                  <Delete />
+                </button>
+              </el-tooltip>
             </td>
           </tr>
           <tr v-if="events.length === 0">
@@ -253,6 +260,8 @@ onMounted(() => {
   svg {
     font-size: 18px;
     color: #666;
+    width: 18px;
+    height: 18px;
   }
 }
 
@@ -307,10 +316,15 @@ onMounted(() => {
 }
 
 .action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 8px;
   border: none;
   border-radius: 8px;
   cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
   transition: background-color 0.2s ease;
   
   &.view {
@@ -351,6 +365,8 @@ onMounted(() => {
   
   svg {
     font-size: 16px;
+    width: 16px;
+    height: 16px;
   }
 }
 

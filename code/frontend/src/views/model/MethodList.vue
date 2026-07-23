@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { methodApi } from '@/api/method'
 import { requirementApi } from '@/api/requirement'
 import { Search, Edit, Delete, Refresh, Plus } from '@element-plus/icons-vue'
+import { ElTooltip } from 'element-plus'
 
 const router = useRouter()
 const route = useRoute()
@@ -138,12 +139,16 @@ onMounted(() => {
             <td class="description-cell">{{ method.description || '-' }}</td>
             <td>{{ method.createdAt?.slice(0, 10) }}</td>
             <td class="actions">
-              <button class="action-btn edit" @click="handleEdit(method.id)">
-                <Edit />
-              </button>
-              <button class="action-btn delete" @click="handleDelete(method.id)">
-                <Delete />
-              </button>
+              <el-tooltip content="编辑" placement="top">
+                <button class="action-btn edit" @click="handleEdit(method.id)">
+                  <Edit />
+                </button>
+              </el-tooltip>
+              <el-tooltip content="删除" placement="top">
+                <button class="action-btn delete" @click="handleDelete(method.id)">
+                  <Delete />
+                </button>
+              </el-tooltip>
             </td>
           </tr>
           <tr v-if="methods.length === 0">
@@ -278,6 +283,8 @@ onMounted(() => {
   svg {
     font-size: 18px;
     color: #666;
+    width: 18px;
+    height: 18px;
   }
 }
 
@@ -339,10 +346,15 @@ onMounted(() => {
 }
 
 .action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 8px;
   border: none;
   border-radius: 8px;
   cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
   transition: background-color 0.2s ease;
   
   &.edit {
@@ -371,6 +383,8 @@ onMounted(() => {
   
   svg {
     font-size: 16px;
+    width: 16px;
+    height: 16px;
   }
 }
 

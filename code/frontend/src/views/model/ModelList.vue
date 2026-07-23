@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { modelApi } from '@/api/model'
 import { Search, Edit, Delete, View, Refresh, Setting } from '@element-plus/icons-vue'
+import { ElTooltip } from 'element-plus'
 
 const router = useRouter()
 const models = ref<any[]>([])
@@ -117,18 +118,26 @@ onMounted(() => {
             <td>{{ model.methods?.length || 0 }}</td>
             <td>{{ model.createdAt?.slice(0, 10) }}</td>
             <td class="actions">
-              <button class="action-btn view" @click="handleView(model.id)">
-                <View />
-              </button>
-              <button class="action-btn edit" @click="handleEdit(model.id)">
-                <Edit />
-              </button>
-              <button class="action-btn property" @click="handleManageProperties(model.id)">
-                <Setting />
-              </button>
-              <button class="action-btn delete" @click="handleDelete(model.id)">
-                <Delete />
-              </button>
+              <el-tooltip content="查看" placement="top">
+                <button class="action-btn view" @click="handleView(model.id)">
+                  <View />
+                </button>
+              </el-tooltip>
+              <el-tooltip content="编辑" placement="top">
+                <button class="action-btn edit" @click="handleEdit(model.id)">
+                  <Edit />
+                </button>
+              </el-tooltip>
+              <el-tooltip content="属性" placement="top">
+                <button class="action-btn property" @click="handleManageProperties(model.id)">
+                  <Setting />
+                </button>
+              </el-tooltip>
+              <el-tooltip content="删除" placement="top">
+                <button class="action-btn delete" @click="handleDelete(model.id)">
+                  <Delete />
+                </button>
+              </el-tooltip>
             </td>
           </tr>
           <tr v-if="models.length === 0">
@@ -240,6 +249,8 @@ onMounted(() => {
   svg {
     font-size: 18px;
     color: #666;
+    width: 18px;
+    height: 18px;
   }
 }
 
@@ -288,10 +299,15 @@ onMounted(() => {
 }
 
 .action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 8px;
   border: none;
   border-radius: 8px;
   cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
   transition: background-color 0.2s ease;
   
   &.view {
@@ -344,6 +360,8 @@ onMounted(() => {
   
   svg {
     font-size: 16px;
+    width: 16px;
+    height: 16px;
   }
 }
 

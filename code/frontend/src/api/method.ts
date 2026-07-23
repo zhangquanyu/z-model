@@ -15,8 +15,8 @@ export interface Method {
 }
 
 export const methodApi = {
-  list(modelId: number) {
-    return request.get(`/models/${modelId}/methods`)
+  list(modelId: number, params?: any) {
+    return request.get(`/models/${modelId}/methods`, { params })
   },
   getById(modelId: number, methodId: number) {
     return request.get(`/models/${modelId}/methods/${methodId}`)
