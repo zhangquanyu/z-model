@@ -4,6 +4,7 @@ import com.zmodel.dto.request.ModelCreateRequest;
 import com.zmodel.dto.request.ModelUpdateRequest;
 import com.zmodel.dto.response.ApiResponse;
 import com.zmodel.dto.response.ModelDTO;
+import com.zmodel.dto.response.RequirementDTO;
 import com.zmodel.service.ModelService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/models")
@@ -31,8 +34,14 @@ public class ModelController {
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<ModelDTO> getById(@PathVariable Long id) {
+    public ApiResponse<ModelDTO> getById(@PathVariable String id) {
         ModelDTO result = modelService.getById(id);
+        return ApiResponse.success(result);
+    }
+
+    @GetMapping("/{id}/requirements")
+    public ApiResponse<List<RequirementDTO>> getModelRequirements(@PathVariable String id) {
+        List<RequirementDTO> result = modelService.getModelRequirements(id);
         return ApiResponse.success(result);
     }
 
@@ -43,13 +52,13 @@ public class ModelController {
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<ModelDTO> update(@PathVariable Long id, @Valid @RequestBody ModelUpdateRequest request) {
+    public ApiResponse<ModelDTO> update(@PathVariable String id, @Valid @RequestBody ModelUpdateRequest request) {
         ModelDTO result = modelService.update(id, request);
         return ApiResponse.success("更新成功", result);
     }
 
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(@PathVariable Long id) {
+    public ApiResponse<Void> delete(@PathVariable String id) {
         modelService.delete(id);
         return ApiResponse.success("删除成功", null);
     }

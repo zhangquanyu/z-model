@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { eventApi } from '@/api/event'
 import { modelApi } from '@/api/model'
 import { ArrowLeft, Check } from '@element-plus/icons-vue'
+import RichTextEditor from '@/components/RichTextEditor.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -197,11 +198,7 @@ const handleBack = () => {
         
         <div class="form-group full-width">
           <label>描述</label>
-          <textarea
-            v-model="form.description"
-            rows="4"
-            placeholder="请输入事件描述"
-          ></textarea>
+          <RichTextEditor v-model="form.description" placeholder="请输入事件描述" />
         </div>
         
         <div class="form-group full-width">

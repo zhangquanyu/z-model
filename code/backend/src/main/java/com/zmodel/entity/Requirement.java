@@ -17,13 +17,16 @@ import java.time.LocalDateTime;
 public class Requirement {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "id", length = 36)
+    private String id;
 
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
-    @Column(name = "description", columnDefinition = "TEXT")
+    @Column(name = "code", unique = true, length = 50)
+    private String code;
+
+    @Column(name = "description", columnDefinition = "LONGTEXT")
     private String description;
 
     @Column(name = "status", length = 20)
@@ -33,6 +36,13 @@ public class Requirement {
     @Column(name = "priority", length = 20)
     @Builder.Default
     private String priority = "MEDIUM";
+
+    @Column(name = "requirement_type", length = 10)
+    @Builder.Default
+    private String requirementType = "MAIN";
+
+    @Column(name = "parent_id", length = 36)
+    private String parentId;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

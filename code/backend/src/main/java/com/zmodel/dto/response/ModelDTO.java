@@ -14,7 +14,7 @@ import java.util.List;
 @AllArgsConstructor
 public class ModelDTO {
 
-    private Long id;
+    private String id;
 
     private String name;
 

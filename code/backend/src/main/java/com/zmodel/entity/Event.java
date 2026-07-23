@@ -18,13 +18,43 @@ import java.time.LocalDateTime;
 public class Event {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "id", length = 36)
+    private String id;
 
-    @Column(name = "external_flow_no_1", nullable = false, length = 100)
+    @Column(name = "name", nullable = false, length = 100)
+    private String name;
+
+    @Column(name = "event_type", nullable = false, length = 50)
+    private String eventType;
+
+    @Column(name = "model_id", length = 36)
+    private String modelId;
+
+    @Column(name = "amount", precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal amount = BigDecimal.ZERO;
+
+    @Column(name = "quantity")
+    @Builder.Default
+    private Integer quantity = 0;
+
+    @Column(name = "status", length = 20)
+    @Builder.Default
+    private String status = "SUCCESS";
+
+    @Column(name = "event_time")
+    private LocalDateTime eventTime;
+
+    @Column(name = "description", columnDefinition = "LONGTEXT")
+    private String description;
+
+    @Column(name = "metadata", columnDefinition = "JSON")
+    private String metadata;
+
+    @Column(name = "external_flow_no1", length = 100)
     private String externalFlowNo1;
 
-    @Column(name = "external_flow_no_2", length = 100)
+    @Column(name = "external_flow_no2", length = 100)
     private String externalFlowNo2;
 
     @Column(name = "point_brand_code", length = 50)
@@ -39,32 +69,26 @@ public class Event {
     @Column(name = "sub_order_no", length = 100)
     private String subOrderNo;
 
-    @Column(name = "event_time")
-    private LocalDateTime eventTime;
-
     @Column(name = "partner_code", length = 50)
     private String partnerCode;
 
     @Column(name = "member_card_no", length = 50)
     private String memberCardNo;
 
-    @Column(name = "sales_channel_1", length = 50)
+    @Column(name = "sales_channel1", length = 50)
     private String salesChannel1;
 
-    @Column(name = "sales_channel_2", length = 50)
+    @Column(name = "sales_channel2", length = 50)
     private String salesChannel2;
 
     @Column(name = "entry_flag")
     private Integer entryFlag;
 
-    @Column(name = "external_flow_no_3", length = 100)
+    @Column(name = "external_flow_no3", length = 100)
     private String externalFlowNo3;
 
     @Column(name = "business_tag", length = 100)
     private String businessTag;
-
-    @Column(name = "event_type", length = 50)
-    private String eventType;
 
     @Column(name = "event_amount", precision = 18, scale = 2)
     private BigDecimal eventAmount;
@@ -75,12 +99,8 @@ public class Event {
     @Column(name = "operator", length = 50)
     private String operator;
 
-    @Column(name = "remark", columnDefinition = "TEXT")
+    @Column(name = "remark", length = 5000)
     private String remark;
-
-    @Column(name = "status", length = 20)
-    @Builder.Default
-    private String status = "PENDING";
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

@@ -2,18 +2,22 @@ CREATE TABLE IF NOT EXISTS requirement (
     id VARCHAR(36) PRIMARY KEY COMMENT '主键ID',
     name VARCHAR(100) NOT NULL COMMENT '需求名称',
     code VARCHAR(50) UNIQUE COMMENT '需求编号',
-    description TEXT COMMENT '需求描述',
+    description LONGTEXT COMMENT '需求描述(富文本HTML)',
     status VARCHAR(20) DEFAULT 'DRAFT' COMMENT '状态(DRAFT/PENDING/APPROVED/REJECTED)',
     priority VARCHAR(20) DEFAULT 'MEDIUM' COMMENT '优先级(LOW/MEDIUM/HIGH/CRITICAL)',
+    requirement_type VARCHAR(10) DEFAULT 'MAIN' COMMENT '需求类型(MAIN/SUB)',
+    parent_id VARCHAR(36) COMMENT '父需求ID(子需求关联主需求)',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    KEY idx_parent_id (parent_id),
+    KEY idx_requirement_type (requirement_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='需求表';
 
 CREATE TABLE IF NOT EXISTS model (
     id VARCHAR(36) PRIMARY KEY COMMENT '主键ID',
     name VARCHAR(100) NOT NULL COMMENT '模型名称',
     code VARCHAR(50) UNIQUE COMMENT '模型编号',
-    description TEXT COMMENT '模型描述',
+    description LONGTEXT COMMENT '模型描述(富文本HTML)',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='模型表';
@@ -34,7 +38,7 @@ CREATE TABLE IF NOT EXISTS property (
     requirement_id VARCHAR(36) COMMENT '关联需求ID',
     required BOOLEAN DEFAULT FALSE COMMENT '是否必填',
     default_value VARCHAR(255) COMMENT '默认值',
-    description TEXT COMMENT '属性描述',
+    description LONGTEXT COMMENT '属性描述(富文本HTML)',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='属性表';
@@ -45,7 +49,7 @@ CREATE TABLE IF NOT EXISTS method (
     code VARCHAR(50) COMMENT '方法编码',
     model_id VARCHAR(36) NOT NULL COMMENT '所属模型ID',
     requirement_id VARCHAR(36) COMMENT '关联需求ID',
-    description TEXT COMMENT '方法描述',
+    description LONGTEXT COMMENT '方法描述(富文本HTML)',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='方法表';
@@ -68,16 +72,37 @@ CREATE TABLE IF NOT EXISTS event (
     quantity INT DEFAULT 0 COMMENT '数量',
     status VARCHAR(20) DEFAULT 'SUCCESS' COMMENT '状态(SUCCESS/FAILED/PENDING)',
     event_time DATETIME COMMENT '事件时间',
-    description TEXT COMMENT '事件描述',
+    description LONGTEXT COMMENT '事件描述(富文本HTML)',
     metadata JSON COMMENT '元数据',
+    external_flow_no1 VARCHAR(100) COMMENT '外部流水号一级',
+    external_flow_no2 VARCHAR(100) COMMENT '外部流水号二级',
+    point_brand_code VARCHAR(50) COMMENT '积分品牌代码',
+    scene_code VARCHAR(50) COMMENT '场景码',
+    main_order_no VARCHAR(100) COMMENT '主订单号',
+    sub_order_no VARCHAR(100) COMMENT '子订单号',
+    partner_code VARCHAR(50) COMMENT '合作伙伴代码',
+    member_card_no VARCHAR(50) COMMENT '会员卡号',
+    sales_channel1 VARCHAR(50) COMMENT '销售渠道一级',
+    sales_channel2 VARCHAR(50) COMMENT '销售渠道二级',
+    entry_flag INT COMMENT '入账标志',
+    external_flow_no3 VARCHAR(100) COMMENT '外部流水号三级',
+    business_tag VARCHAR(100) COMMENT '业务标签',
+    event_amount DECIMAL(18,2) COMMENT '事件金额',
+    pfr_id VARCHAR(100) COMMENT 'PFRID',
+    operator VARCHAR(50) COMMENT '操作人',
+    remark VARCHAR(5000) COMMENT '备注',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    KEY idx_external_flow_no1 (external_flow_no1),
+    KEY idx_member_card_no (member_card_no),
+    KEY idx_event_type (event_type),
+    KEY idx_event_time (event_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='事件流水表';
 
-INSERT INTO requirement (id, name, code, description, status, priority) VALUES 
-('1', '用户管理需求', 'REQ-001', '实现用户的注册、登录、认证等功能', 'APPROVED', 'HIGH'),
-('2', '订单管理需求', 'REQ-002', '实现订单的创建、支付、发货等流程', 'APPROVED', 'HIGH'),
-('3', '商品管理需求', 'REQ-003', '实现商品的增删改查和库存管理', 'PENDING', 'MEDIUM');
+INSERT INTO requirement (id, name, code, description, status, priority, requirement_type, parent_id) VALUES 
+('1', '用户管理需求', 'REQ-001', '<p>实现用户的注册、登录、认证等功能</p>', 'APPROVED', 'HIGH', 'MAIN', NULL),
+('2', '订单管理需求', 'REQ-002', '<p>实现订单的创建、支付、发货等流程</p>', 'APPROVED', 'HIGH', 'MAIN', NULL),
+('3', '商品管理需求', 'REQ-003', '<p>实现商品的增删改查和库存管理</p>', 'PENDING', 'MEDIUM', 'MAIN', NULL);
 
 INSERT INTO model (id, name, code, description) VALUES 
 ('1', '用户模型', 'MODEL-001', '用户数据模型'),

@@ -7,13 +7,15 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface ModelRequirementRepository extends JpaRepository<ModelRequirement, Long> {
+public interface ModelRequirementRepository extends JpaRepository<ModelRequirement, String> {
 
-    List<ModelRequirement> findByModelId(Long modelId);
+    List<ModelRequirement> findByModelId(String modelId);
 
-    void deleteByModelId(Long modelId);
+    List<ModelRequirement> findByRequirementId(String requirementId);
 
-    void deleteByRequirementId(Long requirementId);
+    void deleteByModelId(String modelId);
 
-    List<ModelRequirement> findByRequirementId(Long requirementId);
+    void deleteByRequirementId(String requirementId);
+
+    boolean existsByModelIdAndRequirementId(String modelId, String requirementId);
 }

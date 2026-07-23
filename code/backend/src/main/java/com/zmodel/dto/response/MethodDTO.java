@@ -14,13 +14,19 @@ import java.util.List;
 @AllArgsConstructor
 public class MethodDTO {
 
-    private Long id;
+    private String id;
 
-    private Long modelId;
+    private String modelId;
 
-    private Long requirementId;
+    private String modelName;
+
+    private String requirementId;
 
     private String requirementName;
+
+    private String parentRequirementId;
+
+    private String parentRequirementName;
 
     private String name;
 

@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { modelApi } from '@/api/model'
 import { requirementApi } from '@/api/requirement'
 import { ArrowLeft, Check, Plus, Close } from '@element-plus/icons-vue'
+import RichTextEditor from '@/components/RichTextEditor.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -38,8 +39,8 @@ onMounted(async () => {
 
 const loadRequirements = async () => {
   try {
-    const res = await requirementApi.list({ page: 0, size: 100 })
-    allRequirements.value = res.content || []
+    const res = await requirementApi.listMainRequirements()
+    allRequirements.value = res.data || []
   } catch (error) {
     console.error('Failed to load requirements:', error)
   }
@@ -131,20 +132,16 @@ const handleBack = () => {
         
         <div class="form-group full-width">
           <label>描述</label>
-          <textarea
-            v-model="form.description"
-            rows="4"
-            placeholder="请输入模型描述"
-          ></textarea>
+          <RichTextEditor v-model="form.description" placeholder="请输入模型描述" />
         </div>
       </div>
       
       <div class="form-section">
-        <h3>关联需求</h3>
+        <h3>关联主需求</h3>
         
         <div v-if="availableRequirements.length > 0" class="requirement-selector">
           <select @change="addRequirement(($event.target as HTMLSelectElement).value)" class="requirement-select">
-            <option value="">选择需求</option>
+            <option value="">选择主需求</option>
             <option v-for="req in availableRequirements" :key="req.id" :value="req.id">
               {{ req.name }} ({{ req.code }})
             </option>
@@ -162,7 +159,7 @@ const handleBack = () => {
         
         <div v-if="form.requirementIds.length === 0" class="empty-hint">
           <Plus class="hint-icon" />
-          <span>暂无关联需求，请选择需求</span>
+          <span>暂无关联主需求，请选择主需求</span>
         </div>
       </div>
     </div>
@@ -271,8 +268,7 @@ const handleBack = () => {
 }
 
 .form-group input,
-.form-group select,
-.form-group textarea {
+.form-group select {
   padding: 12px 16px;
   border: 1px solid #ddd;
   border-radius: 10px;
@@ -288,10 +284,6 @@ const handleBack = () => {
     background-color: #f5f7fa;
     color: #999;
   }
-}
-
-.form-group textarea {
-  resize: vertical;
 }
 
 .requirement-selector {

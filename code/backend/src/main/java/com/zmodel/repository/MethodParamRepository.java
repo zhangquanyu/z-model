@@ -7,13 +7,13 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface MethodParamRepository extends JpaRepository<MethodParam, Long> {
+public interface MethodParamRepository extends JpaRepository<MethodParam, String> {
 
-    List<MethodParam> findByMethodId(Long methodId);
+    List<MethodParam> findByMethodIdAndParamType(String methodId, String paramType);
 
-    List<MethodParam> findByMethodIdAndParamType(Long methodId, String paramType);
+    List<MethodParam> findByMethodId(String methodId);
 
-    void deleteByMethodId(Long methodId);
+    void deleteByMethodId(String methodId);
 
-    void deleteByPropertyId(Long propertyId);
+    void deleteByPropertyId(String propertyId);
 }

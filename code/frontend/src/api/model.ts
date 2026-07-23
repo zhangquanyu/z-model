@@ -1,21 +1,14 @@
 import request from './index'
+import type { Requirement } from './requirement'
 
 export interface Model {
-  id?: number
+  id?: string
   name: string
   code: string
   description: string
   requirements?: Requirement[]
   createdAt?: string
   updatedAt?: string
-}
-
-export interface Requirement {
-  id: number
-  name: string
-  description: string
-  status: string
-  priority: string
 }
 
 export interface ModelQuery {
@@ -28,16 +21,19 @@ export const modelApi = {
   list(params: ModelQuery) {
     return request.get('/models', { params })
   },
-  getById(id: number) {
+  getById(id: string) {
     return request.get(`/models/${id}`)
   },
-  create(data: Model & { requirementIds?: number[] }) {
+  getRequirements(id: string) {
+    return request.get(`/models/${id}/requirements`)
+  },
+  create(data: Model & { requirementIds?: string[] }) {
     return request.post('/models', data)
   },
-  update(id: number, data: Model & { requirementIds?: number[] }) {
+  update(id: string, data: Model & { requirementIds?: string[] }) {
     return request.put(`/models/${id}`, data)
   },
-  delete(id: number) {
+  delete(id: string) {
     return request.delete(`/models/${id}`)
   }
 }

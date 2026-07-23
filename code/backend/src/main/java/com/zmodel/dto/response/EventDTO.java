@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class EventDTO {
 
-    private Long id;
+    private String id;
 
     private String externalFlowNo1;
 

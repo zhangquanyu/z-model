@@ -17,8 +17,8 @@ import java.time.LocalDateTime;
 public class Model {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "id", length = 36)
+    private String id;
 
     @Column(name = "name", nullable = false, length = 100)
     private String name;
@@ -26,7 +26,7 @@ public class Model {
     @Column(name = "code", nullable = false, unique = true, length = 50)
     private String code;
 
-    @Column(name = "description", columnDefinition = "TEXT")
+    @Column(name = "description", columnDefinition = "LONGTEXT")
     private String description;
 
     @Column(name = "created_at")

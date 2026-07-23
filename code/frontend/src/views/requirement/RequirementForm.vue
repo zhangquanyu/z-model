@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { requirementApi } from '@/api/requirement'
 import { ArrowLeft, Check } from '@element-plus/icons-vue'
+import RichTextEditor from '@/components/RichTextEditor.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -33,7 +34,7 @@ const priorityOptions = [
 onMounted(async () => {
   if (isEdit.value && route.params.id) {
     try {
-      const res = await requirementApi.getById(Number(route.params.id))
+      const res = await requirementApi.getById(route.params.id as string)
       form.value = {
         name: res.name || '',
         code: res.code || '',
@@ -130,11 +131,7 @@ const handleBack = () => {
         
         <div class="form-group full-width">
           <label>描述</label>
-          <textarea
-            v-model="form.description"
-            rows="4"
-            placeholder="请输入需求描述"
-          ></textarea>
+          <RichTextEditor v-model="form.description" placeholder="请输入需求描述" />
         </div>
       </div>
     </div>
@@ -243,8 +240,7 @@ const handleBack = () => {
 }
 
 .form-group input,
-.form-group select,
-.form-group textarea {
+.form-group select {
   padding: 12px 16px;
   border: 1px solid #ddd;
   border-radius: 10px;
@@ -260,10 +256,6 @@ const handleBack = () => {
     background-color: #f5f7fa;
     color: #999;
   }
-}
-
-.form-group textarea {
-  resize: vertical;
 }
 
 .form-actions {

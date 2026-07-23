@@ -41,7 +41,7 @@ public class EventController {
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<EventDTO> getById(@PathVariable Long id) {
+    public ApiResponse<EventDTO> getById(@PathVariable String id) {
         EventDTO result = eventService.getById(id);
         return ApiResponse.success(result);
     }
@@ -53,13 +53,13 @@ public class EventController {
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<EventDTO> update(@PathVariable Long id, @Valid @RequestBody EventUpdateRequest request) {
+    public ApiResponse<EventDTO> update(@PathVariable String id, @Valid @RequestBody EventUpdateRequest request) {
         EventDTO result = eventService.update(id, request);
         return ApiResponse.success("更新成功", result);
     }
 
     @PutMapping("/{id}/status")
-    public ApiResponse<EventDTO> updateStatus(@PathVariable Long id, @Valid @RequestBody EventStatusUpdateRequest request) {
+    public ApiResponse<EventDTO> updateStatus(@PathVariable String id, @Valid @RequestBody EventStatusUpdateRequest request) {
         EventDTO result = eventService.updateStatus(id, request.getStatus());
         return ApiResponse.success("状态变更成功", result);
     }
@@ -105,14 +105,14 @@ public class EventController {
     }
 
     @GetMapping("/{id}/reversible")
-    public ApiResponse<Boolean> checkReversible(@PathVariable Long id) {
+    public ApiResponse<Boolean> checkReversible(@PathVariable String id) {
         Boolean result = eventService.checkReversible(id);
         return ApiResponse.success(result);
     }
 
     @GetMapping("/{id}/original")
     public ApiResponse<Page<EventDTO>> findOriginalEvents(
-            @PathVariable Long id,
+            @PathVariable String id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));

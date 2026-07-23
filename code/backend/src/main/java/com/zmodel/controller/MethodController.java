@@ -19,32 +19,32 @@ public class MethodController {
     private final MethodService methodService;
 
     @GetMapping
-    public ApiResponse<List<MethodDTO>> list(@PathVariable Long modelId) {
+    public ApiResponse<List<MethodDTO>> list(@PathVariable String modelId) {
         List<MethodDTO> result = methodService.listByModelId(modelId);
         return ApiResponse.success(result);
     }
 
     @GetMapping("/{methodId}")
-    public ApiResponse<MethodDTO> getById(@PathVariable Long modelId, @PathVariable Long methodId) {
+    public ApiResponse<MethodDTO> getById(@PathVariable String modelId, @PathVariable String methodId) {
         MethodDTO result = methodService.getById(modelId, methodId);
         return ApiResponse.success(result);
     }
 
     @PostMapping
-    public ApiResponse<MethodDTO> create(@PathVariable Long modelId, @Valid @RequestBody MethodCreateRequest request) {
+    public ApiResponse<MethodDTO> create(@PathVariable String modelId, @Valid @RequestBody MethodCreateRequest request) {
         MethodDTO result = methodService.create(modelId, request);
         return ApiResponse.success("创建成功", result);
     }
 
     @PutMapping("/{methodId}")
-    public ApiResponse<MethodDTO> update(@PathVariable Long modelId, @PathVariable Long methodId,
+    public ApiResponse<MethodDTO> update(@PathVariable String modelId, @PathVariable String methodId,
                                          @Valid @RequestBody MethodUpdateRequest request) {
         MethodDTO result = methodService.update(modelId, methodId, request);
         return ApiResponse.success("更新成功", result);
     }
 
     @DeleteMapping("/{methodId}")
-    public ApiResponse<Void> delete(@PathVariable Long modelId, @PathVariable Long methodId) {
+    public ApiResponse<Void> delete(@PathVariable String modelId, @PathVariable String methodId) {
         methodService.delete(modelId, methodId);
         return ApiResponse.success("删除成功", null);
     }

@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -36,6 +37,7 @@ public class ModelService {
         }
 
         Model model = Model.builder()
+                .id(UUID.randomUUID().toString())
                 .name(request.getName())
                 .code(request.getCode())
                 .description(request.getDescription())
@@ -44,11 +46,14 @@ public class ModelService {
         model = modelRepository.save(model);
 
         if (request.getRequirementIds() != null && !request.getRequirementIds().isEmpty()) {
-            for (Long requirementId : request.getRequirementIds()) {
-                if (!requirementRepository.existsById(requirementId)) {
-                    throw new RuntimeException("需求不存在: " + requirementId);
+            for (String requirementId : request.getRequirementIds()) {
+                Requirement requirement = requirementRepository.findById(requirementId)
+                        .orElseThrow(() -> new RuntimeException("需求不存在: " + requirementId));
+                if (!"MAIN".equals(requirement.getRequirementType())) {
+                    throw new RuntimeException("模型只能关联主需求");
                 }
                 ModelRequirement mr = ModelRequirement.builder()
+                        .id(UUID.randomUUID().toString())
                         .modelId(model.getId())
                         .requirementId(requirementId)
                         .build();
@@ -61,7 +66,7 @@ public class ModelService {
     }
 
     @Transactional(readOnly = true)
-    public ModelDTO getById(Long id) {
+    public ModelDTO getById(String id) {
         Model model = modelRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("模型不存在: " + id));
         return toDTO(model);
@@ -69,12 +74,17 @@ public class ModelService {
 
     @Transactional(readOnly = true)
     public Page<ModelDTO> list(String keyword, Pageable pageable) {
-        Page<Model> page = modelRepository.findByKeyword(keyword, pageable);
+        Page<Model> page;
+        if (keyword == null || keyword.isEmpty()) {
+            page = modelRepository.findAll(pageable);
+        } else {
+            page = modelRepository.findByNameContaining(keyword, pageable);
+        }
         return page.map(this::toDTO);
     }
 
     @Transactional
-    public ModelDTO update(Long id, ModelUpdateRequest request) {
+    public ModelDTO update(String id, ModelUpdateRequest request) {
         Model model = modelRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("模型不存在: " + id));
 
@@ -86,11 +96,14 @@ public class ModelService {
         modelRequirementRepository.deleteByModelId(id);
 
         if (request.getRequirementIds() != null && !request.getRequirementIds().isEmpty()) {
-            for (Long requirementId : request.getRequirementIds()) {
-                if (!requirementRepository.existsById(requirementId)) {
-                    throw new RuntimeException("需求不存在: " + requirementId);
+            for (String requirementId : request.getRequirementIds()) {
+                Requirement requirement = requirementRepository.findById(requirementId)
+                        .orElseThrow(() -> new RuntimeException("需求不存在: " + requirementId));
+                if (!"MAIN".equals(requirement.getRequirementType())) {
+                    throw new RuntimeException("模型只能关联主需求");
                 }
                 ModelRequirement mr = ModelRequirement.builder()
+                        .id(UUID.randomUUID().toString())
                         .modelId(model.getId())
                         .requirementId(requirementId)
                         .build();
@@ -103,12 +116,33 @@ public class ModelService {
     }
 
     @Transactional
-    public void delete(Long id) {
+    public void delete(String id) {
         if (!modelRepository.existsById(id)) {
             throw new RuntimeException("模型不存在: " + id);
         }
         modelRepository.deleteById(id);
         log.info("删除模型: id={}", id);
+    }
+
+    @Transactional(readOnly = true)
+    public List<RequirementDTO> getModelRequirements(String modelId) {
+        Model model = modelRepository.findById(modelId)
+                .orElseThrow(() -> new RuntimeException("模型不存在: " + modelId));
+        List<ModelRequirement> mrs = modelRequirementRepository.findByModelId(modelId);
+        return mrs.stream()
+                .map(mr -> requirementRepository.findById(mr.getRequirementId()))
+                .filter(java.util.Optional::isPresent)
+                .map(java.util.Optional::get)
+                .map(r -> RequirementDTO.builder()
+                        .id(r.getId())
+                        .name(r.getName())
+                        .code(r.getCode())
+                        .description(r.getDescription())
+                        .status(r.getStatus())
+                        .priority(r.getPriority())
+                        .requirementType(r.getRequirementType())
+                        .build())
+                .collect(Collectors.toList());
     }
 
     private ModelDTO toDTO(Model entity) {
@@ -120,9 +154,11 @@ public class ModelService {
                 .map(r -> RequirementDTO.builder()
                         .id(r.getId())
                         .name(r.getName())
+                        .code(r.getCode())
                         .description(r.getDescription())
                         .status(r.getStatus())
                         .priority(r.getPriority())
+                        .requirementType(r.getRequirementType())
                         .build())
                 .collect(Collectors.toList());
 

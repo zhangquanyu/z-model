@@ -19,8 +19,8 @@ public class ModelUpdateRequest {
     @Size(max = 100, message = "模型名称长度不能超过100个字符")
     private String name;
 
-    @Size(max = 5000, message = "模型描述长度不能超过5000个字符")
+    @Size(max = 65535, message = "模型描述长度不能超过65535个字符")
     private String description;
 
-    private List<Long> requirementIds;
+    private List<String> requirementIds;
 }

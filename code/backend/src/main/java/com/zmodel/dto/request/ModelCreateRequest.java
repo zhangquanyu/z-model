@@ -23,8 +23,8 @@ public class ModelCreateRequest {
     @Size(max = 50, message = "模型编码长度不能超过50个字符")
     private String code;
 
-    @Size(max = 5000, message = "模型描述长度不能超过5000个字符")
+    @Size(max = 65535, message = "模型描述长度不能超过65535个字符")
     private String description;
 
-    private List<Long> requirementIds;
+    private List<String> requirementIds;
 }

@@ -19,32 +19,32 @@ public class PropertyController {
     private final PropertyService propertyService;
 
     @GetMapping
-    public ApiResponse<List<PropertyDTO>> list(@PathVariable Long modelId) {
+    public ApiResponse<List<PropertyDTO>> list(@PathVariable String modelId) {
         List<PropertyDTO> result = propertyService.listByModelId(modelId);
         return ApiResponse.success(result);
     }
 
     @GetMapping("/{propertyId}")
-    public ApiResponse<PropertyDTO> getById(@PathVariable Long modelId, @PathVariable Long propertyId) {
+    public ApiResponse<PropertyDTO> getById(@PathVariable String modelId, @PathVariable String propertyId) {
         PropertyDTO result = propertyService.getById(modelId, propertyId);
         return ApiResponse.success(result);
     }
 
     @PostMapping
-    public ApiResponse<PropertyDTO> create(@PathVariable Long modelId, @Valid @RequestBody PropertyCreateRequest request) {
+    public ApiResponse<PropertyDTO> create(@PathVariable String modelId, @Valid @RequestBody PropertyCreateRequest request) {
         PropertyDTO result = propertyService.create(modelId, request);
         return ApiResponse.success("创建成功", result);
     }
 
     @PutMapping("/{propertyId}")
-    public ApiResponse<PropertyDTO> update(@PathVariable Long modelId, @PathVariable Long propertyId,
+    public ApiResponse<PropertyDTO> update(@PathVariable String modelId, @PathVariable String propertyId,
                                            @Valid @RequestBody PropertyUpdateRequest request) {
         PropertyDTO result = propertyService.update(modelId, propertyId, request);
         return ApiResponse.success("更新成功", result);
     }
 
     @DeleteMapping("/{propertyId}")
-    public ApiResponse<Void> delete(@PathVariable Long modelId, @PathVariable Long propertyId) {
+    public ApiResponse<Void> delete(@PathVariable String modelId, @PathVariable String propertyId) {
         propertyService.delete(modelId, propertyId);
         return ApiResponse.success("删除成功", null);
     }

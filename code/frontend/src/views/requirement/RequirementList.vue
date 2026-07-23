@@ -2,15 +2,13 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { requirementApi } from '@/api/requirement'
-import { Search, Edit, Delete, View, Refresh } from '@element-plus/icons-vue'
+import { Search, Edit, Delete, View, Refresh, ArrowRight, ArrowDown } from '@element-plus/icons-vue'
 import { ElTooltip } from 'element-plus'
 
 const router = useRouter()
 const requirements = ref<any[]>([])
-const total = ref(0)
-const page = ref(0)
-const size = ref(10)
 const searchName = ref('')
+const expandedIds = ref<Set<string>>(new Set())
 
 const statusMap: Record<string, string> = {
   DRAFT: '草稿',
@@ -19,32 +17,28 @@ const statusMap: Record<string, string> = {
   REJECTED: '已拒绝'
 }
 
+const priorityMap: Record<string, string> = {
+  LOW: '低',
+  MEDIUM: '中',
+  HIGH: '高',
+  CRITICAL: '紧急'
+}
+
 const loadRequirements = async () => {
   try {
-    const params: any = { page: page.value, size: size.value }
+    const params: any = {}
     if (searchName.value) {
-      params.name = searchName.value
+      params.keyword = searchName.value
     }
-    const res = await requirementApi.list(params)
-    requirements.value = res.content || []
-    total.value = res.totalElements || 0
+    const res = await requirementApi.listMainRequirements(searchName.value || undefined)
+    requirements.value = res.data || []
   } catch (error) {
     console.error('Failed to load requirements:', error)
   }
 }
 
 const handleSearch = () => {
-  page.value = 0
   loadRequirements()
-}
-
-const handlePageChange = (newPage: number) => {
-  page.value = newPage
-  loadRequirements()
-}
-
-const handleView = (id: string) => {
-  router.push(`/requirements/${id}`)
 }
 
 const handleEdit = (id: string) => {
@@ -64,8 +58,19 @@ const handleDelete = async (id: string) => {
 
 const handleRefresh = () => {
   searchName.value = ''
-  page.value = 0
   loadRequirements()
+}
+
+const toggleExpand = (id: string) => {
+  if (expandedIds.value.has(id)) {
+    expandedIds.value.delete(id)
+  } else {
+    expandedIds.value.add(id)
+  }
+}
+
+const isExpanded = (id: string) => {
+  return expandedIds.value.has(id)
 }
 
 onMounted(() => {
@@ -95,9 +100,10 @@ onMounted(() => {
       <table class="data-table">
         <thead>
           <tr>
+            <th style="width: 40px"></th>
             <th>需求名称</th>
             <th>需求编号</th>
-            <th>描述</th>
+            <th>类型</th>
             <th>状态</th>
             <th>优先级</th>
             <th>创建时间</th>
@@ -105,61 +111,94 @@ onMounted(() => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="req in requirements" :key="req.id">
-            <td>{{ req.name }}</td>
-            <td>{{ req.code }}</td>
-            <td class="description-cell">{{ req.description || '-' }}</td>
-            <td>
-              <span :class="'status-tag ' + req.status.toLowerCase()">
-                {{ statusMap[req.status] || req.status }}
-              </span>
-            </td>
-            <td>{{ req.priority }}</td>
-            <td>{{ req.createdAt?.slice(0, 10) }}</td>
-            <td class="actions">
-              <el-tooltip content="查看" placement="top">
-                <button class="action-btn view" @click="handleView(req.id)">
-                  <View />
+          <template v-for="req in requirements" :key="req.id">
+            <tr class="main-row">
+              <td class="expand-cell">
+                <button 
+                  v-if="req.children && req.children.length > 0"
+                  class="expand-btn"
+                  @click="toggleExpand(req.id)"
+                >
+                  <ArrowDown v-if="isExpanded(req.id)" />
+                  <ArrowRight v-else />
                 </button>
-              </el-tooltip>
-              <el-tooltip content="编辑" placement="top">
-                <button class="action-btn edit" @click="handleEdit(req.id)">
-                  <Edit />
-                </button>
-              </el-tooltip>
-              <el-tooltip content="删除" placement="top">
-                <button class="action-btn delete" @click="handleDelete(req.id)">
-                  <Delete />
-                </button>
-              </el-tooltip>
-            </td>
-          </tr>
+                <span v-else class="expand-placeholder"></span>
+              </td>
+              <td class="name-cell">
+                <span class="type-badge main">主需求</span>
+                <span>{{ req.name }}</span>
+              </td>
+              <td>{{ req.code }}</td>
+              <td>
+                <span class="type-tag main">主需求</span>
+              </td>
+              <td>
+                <span :class="'status-tag ' + req.status.toLowerCase()">
+                  {{ statusMap[req.status] || req.status }}
+                </span>
+              </td>
+              <td>{{ priorityMap[req.priority] || req.priority }}</td>
+              <td>{{ req.createdAt?.slice(0, 10) }}</td>
+              <td class="actions">
+                <el-tooltip content="编辑" placement="top">
+                  <button class="action-btn edit" @click="handleEdit(req.id)">
+                    <Edit />
+                  </button>
+                </el-tooltip>
+                <el-tooltip content="删除" placement="top">
+                  <button class="action-btn delete" @click="handleDelete(req.id)">
+                    <Delete />
+                  </button>
+                </el-tooltip>
+              </td>
+            </tr>
+            
+            <tr 
+              v-for="child in req.children" 
+              :key="child.id" 
+              v-show="isExpanded(req.id)"
+              class="sub-row"
+            >
+              <td></td>
+              <td class="name-cell sub">
+                <span class="type-badge sub">子需求</span>
+                <span>{{ child.name }}</span>
+              </td>
+              <td>{{ child.code }}</td>
+              <td>
+                <span class="type-tag sub">子需求</span>
+              </td>
+              <td>
+                <span :class="'status-tag ' + child.status.toLowerCase()">
+                  {{ statusMap[child.status] || child.status }}
+                </span>
+              </td>
+              <td>{{ priorityMap[child.priority] || child.priority }}</td>
+              <td>{{ child.createdAt?.slice(0, 10) }}</td>
+              <td class="actions">
+                <el-tooltip content="查看" placement="top">
+                  <button class="action-btn view" @click="handleView(child.id)">
+                    <View />
+                  </button>
+                </el-tooltip>
+                <el-tooltip content="编辑" placement="top">
+                  <button class="action-btn edit" @click="handleEdit(child.id)">
+                    <Edit />
+                  </button>
+                </el-tooltip>
+                <el-tooltip content="删除" placement="top">
+                  <button class="action-btn delete" @click="handleDelete(child.id)">
+                    <Delete />
+                  </button>
+                </el-tooltip>
+              </td>
+            </tr>
+          </template>
           <tr v-if="requirements.length === 0">
-            <td colspan="7" class="empty-row">暂无数据</td>
+            <td colspan="8" class="empty-row">暂无数据</td>
           </tr>
         </tbody>
       </table>
-    </div>
-    
-    <div class="pagination">
-      <span class="total">共 {{ total }} 条</span>
-      <div class="page-buttons">
-        <button 
-          :disabled="page === 0" 
-          @click="page > 0 && handlePageChange(page - 1)"
-          class="page-btn"
-        >
-          上一页
-        </button>
-        <span class="page-info">{{ page + 1 }} / {{ Math.ceil(total / size) || 1 }}</span>
-        <button 
-          :disabled="(page + 1) * size >= total" 
-          @click="(page + 1) * size < total && handlePageChange(page + 1)"
-          class="page-btn"
-        >
-          下一页
-        </button>
-      </div>
     </div>
   </div>
 </template>
@@ -271,11 +310,76 @@ onMounted(() => {
   font-size: 14px;
 }
 
-.description-cell {
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.expand-cell {
+  padding: 16px 8px;
+}
+
+.expand-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  
+  svg {
+    font-size: 16px;
+    color: #999;
+    width: 16px;
+    height: 16px;
+  }
+  
+  &:hover svg {
+    color: #1e3a5f;
+  }
+}
+
+.expand-placeholder {
+  display: inline-block;
+  width: 24px;
+}
+
+.name-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  &.sub {
+    padding-left: 48px;
+    background-color: #fafbfc;
+  }
+}
+
+.type-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  
+  &.main {
+    background-color: #e3f2fd;
+    color: #1976d2;
+  }
+  
+  &.sub {
+    background-color: #e8f5e9;
+    color: #388e3c;
+  }
+}
+
+.type-tag {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  
+  &.main {
+    background-color: #e3f2fd;
+    color: #1976d2;
+  }
+  
+  &.sub {
+    background-color: #e8f5e9;
+    color: #388e3c;
+  }
 }
 
 .status-tag {
@@ -303,6 +407,14 @@ onMounted(() => {
     background-color: #ffebee;
     color: #f44336;
   }
+}
+
+.main-row {
+  background-color: white;
+}
+
+.sub-row {
+  background-color: #fafbfc;
 }
 
 .actions {
@@ -369,50 +481,5 @@ onMounted(() => {
   text-align: center;
   color: #999;
   padding: 40px;
-}
-
-.pagination {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid #f0f0f0;
-}
-
-.total {
-  font-size: 14px;
-  color: #666;
-}
-
-.page-buttons {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.page-btn {
-  padding: 8px 16px;
-  border: 1px solid #ddd;
-  background-color: white;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  
-  &:hover:not(:disabled) {
-    border-color: #1e3a5f;
-    color: #1e3a5f;
-  }
-  
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-.page-info {
-  font-size: 14px;
-  color: #666;
 }
 </style>

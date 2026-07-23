@@ -18,23 +18,21 @@ public class PropertyCreateRequest {
     @Size(max = 100, message = "属性名称长度不能超过100个字符")
     private String name;
 
-    @NotBlank(message = "属性编码不能为空")
     @Size(max = 50, message = "属性编码长度不能超过50个字符")
     private String code;
 
     @NotBlank(message = "属性类型不能为空")
     @Size(max = 20, message = "属性类型长度不能超过20个字符")
-    private String type;
+    private String dataType;
 
-    @Size(max = 5000, message = "属性描述长度不能超过5000个字符")
+    @Size(max = 65535, message = "属性描述长度不能超过65535个字符")
     private String description;
 
-    @NotNull(message = "需求ID不能为空")
-    private Long requirementId;
+    @NotNull(message = "主需求ID不能为空")
+    private String parentRequirementId;
 
     @Builder.Default
-    private Boolean nullable = true;
+    private Boolean required = false;
 
-    @Builder.Default
-    private Integer length = 255;
+    private String defaultValue;
 }

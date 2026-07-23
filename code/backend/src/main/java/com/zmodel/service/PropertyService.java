@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -26,40 +27,61 @@ public class PropertyService {
     private final RequirementRepository requirementRepository;
 
     @Transactional
-    public PropertyDTO create(Long modelId, PropertyCreateRequest request) {
+    public PropertyDTO create(String modelId, PropertyCreateRequest request) {
         if (!modelRepository.existsById(modelId)) {
             throw new RuntimeException("模型不存在: " + modelId);
         }
 
-        if (!requirementRepository.existsById(request.getRequirementId())) {
-            throw new RuntimeException("需求不存在: " + request.getRequirementId());
+        Requirement parentRequirement = requirementRepository.findById(request.getParentRequirementId())
+                .orElseThrow(() -> new RuntimeException("主需求不存在: " + request.getParentRequirementId()));
+
+        if (!"MAIN".equals(parentRequirement.getRequirementType())) {
+            throw new RuntimeException("只能关联主需求");
         }
 
-        if (propertyRepository.existsByModelIdAndCode(modelId, request.getCode())) {
-            throw new RuntimeException("属性编码已存在: " + request.getCode());
+        String code = request.getCode();
+        if (code == null || code.isEmpty()) {
+            code = generateCode(modelId);
+        } else if (propertyRepository.existsByModelIdAndCode(modelId, code)) {
+            throw new RuntimeException("属性编码已存在: " + code);
         }
+
+        String subRequirementName = "[" + request.getName() + "] 属性描述";
+        Requirement subRequirement = Requirement.builder()
+                .id(UUID.randomUUID().toString())
+                .name(subRequirementName)
+                .code(generateSubCode(parentRequirement.getCode()))
+                .description(request.getDescription())
+                .status(parentRequirement.getStatus())
+                .priority(parentRequirement.getPriority())
+                .requirementType("SUB")
+                .parentId(request.getParentRequirementId())
+                .build();
+        subRequirement = requirementRepository.save(subRequirement);
 
         Property property = Property.builder()
+                .id(UUID.randomUUID().toString())
                 .modelId(modelId)
-                .requirementId(request.getRequirementId())
+                .requirementId(subRequirement.getId())
                 .name(request.getName())
-                .code(request.getCode())
-                .type(request.getType())
+                .code(code)
+                .dataType(request.getDataType())
                 .description(request.getDescription())
-                .nullable(request.getNullable())
-                .length(request.getLength())
+                .required(request.getRequired())
+                .defaultValue(request.getDefaultValue())
                 .build();
 
         property = propertyRepository.save(property);
-        log.info("创建属性: id={}, name={}, modelId={}", property.getId(), property.getName(), modelId);
+        log.info("创建属性: id={}, name={}, modelId={}, requirementId={}", 
+                property.getId(), property.getName(), modelId, subRequirement.getId());
         return toDTO(property);
     }
 
     @Transactional(readOnly = true)
-    public PropertyDTO getById(Long modelId, Long propertyId) {
+    public PropertyDTO getById(String modelId, String propertyId) {
         Property property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new RuntimeException("属性不存在: " + propertyId));
-        
+
         if (!property.getModelId().equals(modelId)) {
             throw new RuntimeException("属性不属于该模型");
         }
@@ -67,7 +89,7 @@ public class PropertyService {
     }
 
     @Transactional(readOnly = true)
-    public List<PropertyDTO> listByModelId(Long modelId) {
+    public List<PropertyDTO> listByModelId(String modelId) {
         if (!modelRepository.existsById(modelId)) {
             throw new RuntimeException("模型不存在: " + modelId);
         }
@@ -78,7 +100,7 @@ public class PropertyService {
     }
 
     @Transactional
-    public PropertyDTO update(Long modelId, Long propertyId, PropertyUpdateRequest request) {
+    public PropertyDTO update(String modelId, String propertyId, PropertyUpdateRequest request) {
         Property property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new RuntimeException("属性不存在: " + propertyId));
 
@@ -86,22 +108,45 @@ public class PropertyService {
             throw new RuntimeException("属性不属于该模型");
         }
 
-        if (!requirementRepository.existsById(request.getRequirementId())) {
-            throw new RuntimeException("需求不存在: " + request.getRequirementId());
+        Requirement currentSubRequirement = requirementRepository.findById(property.getRequirementId())
+                .orElseThrow(() -> new RuntimeException("关联的子需求不存在"));
+
+        String newParentId = request.getParentRequirementId();
+        if (!newParentId.equals(currentSubRequirement.getParentId())) {
+            Requirement newParentRequirement = requirementRepository.findById(newParentId)
+                    .orElseThrow(() -> new RuntimeException("主需求不存在: " + newParentId));
+
+            if (!"MAIN".equals(newParentRequirement.getRequirementType())) {
+                throw new RuntimeException("只能关联主需求");
+            }
+
+            String subRequirementName = "[" + request.getName() + "] 属性描述";
+            Requirement newSubRequirement = Requirement.builder()
+                    .id(UUID.randomUUID().toString())
+                    .name(subRequirementName)
+                    .code(generateSubCode(newParentRequirement.getCode()))
+                    .description(request.getDescription())
+                    .status(newParentRequirement.getStatus())
+                    .priority(newParentRequirement.getPriority())
+                    .requirementType("SUB")
+                    .parentId(newParentId)
+                    .build();
+            newSubRequirement = requirementRepository.save(newSubRequirement);
+
+            requirementRepository.deleteById(currentSubRequirement.getId());
+            property.setRequirementId(newSubRequirement.getId());
+        } else {
+            currentSubRequirement.setName("[" + request.getName() + "] 属性描述");
+            currentSubRequirement.setDescription(request.getDescription());
+            requirementRepository.save(currentSubRequirement);
         }
 
         property.setName(request.getName());
         property.setCode(request.getCode());
-        property.setType(request.getType());
+        property.setDataType(request.getDataType());
         property.setDescription(request.getDescription());
-        property.setRequirementId(request.getRequirementId());
-        
-        if (request.getNullable() != null) {
-            property.setNullable(request.getNullable());
-        }
-        if (request.getLength() != null) {
-            property.setLength(request.getLength());
-        }
+        property.setRequired(request.getRequired());
+        property.setDefaultValue(request.getDefaultValue());
 
         property = propertyRepository.save(property);
         log.info("更新属性: id={}, name={}", property.getId(), property.getName());
@@ -109,7 +154,7 @@ public class PropertyService {
     }
 
     @Transactional
-    public void delete(Long modelId, Long propertyId) {
+    public void delete(String modelId, String propertyId) {
         Property property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new RuntimeException("属性不存在: " + propertyId));
 
@@ -117,28 +162,67 @@ public class PropertyService {
             throw new RuntimeException("属性不属于该模型");
         }
 
+        if (property.getRequirementId() != null) {
+            requirementRepository.deleteById(property.getRequirementId());
+        }
+
         propertyRepository.deleteById(propertyId);
         log.info("删除属性: id={}", propertyId);
     }
 
     private PropertyDTO toDTO(Property entity) {
-        String requirementName = requirementRepository.findById(entity.getRequirementId())
-                .map(Requirement::getName)
+        Requirement subRequirement = null;
+        String requirementName = "";
+        String parentRequirementId = null;
+        final String[] parentRequirementName = {""};
+
+        if (entity.getRequirementId() != null) {
+            subRequirement = requirementRepository.findById(entity.getRequirementId()).orElse(null);
+            if (subRequirement != null) {
+                requirementName = subRequirement.getName();
+                if (subRequirement.getParentId() != null) {
+                    parentRequirementId = subRequirement.getParentId();
+                    String parentId = subRequirement.getParentId();
+                    requirementRepository.findById(parentId)
+                            .ifPresent(parent -> parentRequirementName[0] = parent.getName());
+                }
+            }
+        }
+
+        String modelName = modelRepository.findById(entity.getModelId())
+                .map(m -> m.getName())
                 .orElse("");
 
         return PropertyDTO.builder()
                 .id(entity.getId())
                 .modelId(entity.getModelId())
+                .modelName(modelName)
                 .requirementId(entity.getRequirementId())
                 .requirementName(requirementName)
+                .parentRequirementId(parentRequirementId)
+                .parentRequirementName(parentRequirementName[0])
                 .name(entity.getName())
                 .code(entity.getCode())
-                .type(entity.getType())
+                .dataType(entity.getDataType())
                 .description(entity.getDescription())
-                .nullable(entity.getNullable())
-                .length(entity.getLength())
+                .required(entity.getRequired())
+                .defaultValue(entity.getDefaultValue())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
+    }
+
+    private String generateCode(String modelId) {
+        long count = propertyRepository.findByModelId(modelId).size();
+        return String.format("PROP-%04d", count + 1);
+    }
+
+    private String generateSubCode(String parentCode) {
+        Requirement parent = requirementRepository.findByCode(parentCode);
+        if (parent == null) {
+            return parentCode + "-1";
+        }
+        List<Requirement> subRequirements = requirementRepository.findByParentId(parent.getId());
+        return parentCode + "-" + (subRequirements.size() + 1);
     }
 }

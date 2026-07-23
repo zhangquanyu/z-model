@@ -7,15 +7,15 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface PropertyRepository extends JpaRepository<Property, Long> {
+public interface PropertyRepository extends JpaRepository<Property, String> {
 
-    List<Property> findByModelId(Long modelId);
+    List<Property> findByModelIdOrderByName(String modelId);
 
-    List<Property> findByModelIdOrderByName(Long modelId);
+    boolean existsByModelIdAndCode(String modelId, String code);
 
-    void deleteByModelId(Long modelId);
+    boolean existsByModelIdAndIdNot(String modelId, String id);
 
-    void deleteByRequirementId(Long requirementId);
+    List<Property> findByModelId(String modelId);
 
-    boolean existsByModelIdAndCode(Long modelId, String code);
+    List<Property> findByRequirementId(String requirementId);
 }

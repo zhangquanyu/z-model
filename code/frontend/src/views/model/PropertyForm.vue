@@ -2,8 +2,9 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { propertyApi } from '@/api/property'
-import { requirementApi } from '@/api/requirement'
+import { modelApi } from '@/api/model'
 import { ArrowLeft, Check } from '@element-plus/icons-vue'
+import RichTextEditor from '@/components/RichTextEditor.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -14,13 +15,13 @@ const form = ref({
   name: '',
   code: '',
   dataType: 'STRING',
-  requirementId: '',
+  parentRequirementId: '',
   required: false,
   defaultValue: '',
   description: ''
 })
 
-const requirements = ref<any[]>([])
+const modelRequirements = ref<any[]>([])
 
 const dataTypeOptions = [
   { value: 'STRING', label: '字符串' },
@@ -36,16 +37,16 @@ const dataTypeOptions = [
 ]
 
 onMounted(async () => {
-  await loadRequirements()
+  await loadModelRequirements()
   
   if (isEdit.value && route.params.id) {
     try {
-      const res = await propertyApi.getById(Number(modelId), Number(route.params.id))
+      const res = await propertyApi.getById(modelId, route.params.id as string)
       form.value = {
         name: res.name || '',
         code: res.code || '',
         dataType: res.dataType || 'STRING',
-        requirementId: res.requirement?.id || '',
+        parentRequirementId: res.parentRequirementId || '',
         required: res.required || false,
         defaultValue: res.defaultValue || '',
         description: res.description || ''
@@ -56,27 +57,31 @@ onMounted(async () => {
   }
 })
 
-const loadRequirements = async () => {
+const loadModelRequirements = async () => {
   try {
-    const res = await requirementApi.list({ page: 0, size: 100 })
-    requirements.value = res.content || []
+    const res = await modelApi.getRequirements(modelId)
+    modelRequirements.value = res.data || []
   } catch (error) {
-    console.error('Failed to load requirements:', error)
+    console.error('Failed to load model requirements:', error)
   }
 }
 
 const handleSubmit = async (stay = false) => {
   try {
     const data = {
-      ...form.value,
-      modelId,
-      requirement: form.value.requirementId ? { id: form.value.requirementId } : null
+      name: form.value.name,
+      code: form.value.code,
+      dataType: form.value.dataType,
+      parentRequirementId: form.value.parentRequirementId,
+      required: form.value.required,
+      defaultValue: form.value.defaultValue,
+      description: form.value.description
     }
     
     if (isEdit.value && route.params.id) {
-      await propertyApi.update(route.params.id as string, data)
+      await propertyApi.update(modelId, route.params.id as string, data)
     } else {
-      await propertyApi.create(data)
+      await propertyApi.create(modelId, data)
     }
     
     if (!stay) {
@@ -139,10 +144,10 @@ const handleBack = () => {
           </div>
           
           <div class="form-group">
-            <label>关联需求</label>
-            <select v-model="form.requirementId">
-              <option value="">选择需求</option>
-              <option v-for="req in requirements" :key="req.id" :value="req.id">
+            <label>关联主需求 <span class="required">*</span></label>
+            <select v-model="form.parentRequirementId" required>
+              <option value="">选择主需求</option>
+              <option v-for="req in modelRequirements" :key="req.id" :value="req.id">
                 {{ req.name }} ({{ req.code }})
               </option>
             </select>
@@ -170,12 +175,8 @@ const handleBack = () => {
         </div>
         
         <div class="form-group full-width">
-          <label>描述</label>
-          <textarea
-            v-model="form.description"
-            rows="4"
-            placeholder="请输入属性描述"
-          ></textarea>
+          <label>子需求描述 <span class="required">*</span></label>
+          <RichTextEditor v-model="form.description" placeholder="请输入子需求描述" />
         </div>
       </div>
     </div>
@@ -284,8 +285,7 @@ const handleBack = () => {
 }
 
 .form-group input,
-.form-group select,
-.form-group textarea {
+.form-group select {
   padding: 12px 16px;
   border: 1px solid #ddd;
   border-radius: 10px;
@@ -301,10 +301,6 @@ const handleBack = () => {
     background-color: #f5f7fa;
     color: #999;
   }
-}
-
-.form-group textarea {
-  resize: vertical;
 }
 
 .checkbox-label {

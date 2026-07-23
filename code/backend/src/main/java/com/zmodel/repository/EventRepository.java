@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface EventRepository extends JpaRepository<Event, Long> {
+public interface EventRepository extends JpaRepository<Event, String> {
 
     Optional<Event> findByExternalFlowNo1(String externalFlowNo1);
 
@@ -53,5 +53,5 @@ public interface EventRepository extends JpaRepository<Event, Long> {
 
     @Query("SELECT e FROM Event e WHERE e.externalFlowNo1 IN " +
            "(SELECT e2.externalFlowNo1 FROM Event e2 WHERE e2.id = :eventId) AND e.id != :eventId")
-    List<Event> findRelatedEvents(@Param("eventId") Long eventId);
+    List<Event> findRelatedEvents(@Param("eventId") String eventId);
 }

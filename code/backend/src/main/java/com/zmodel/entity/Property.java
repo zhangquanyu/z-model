@@ -17,34 +17,33 @@ import java.time.LocalDateTime;
 public class Property {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "id", length = 36)
+    private String id;
 
-    @Column(name = "model_id", nullable = false)
-    private Long modelId;
+    @Column(name = "model_id", nullable = false, length = 36)
+    private String modelId;
 
-    @Column(name = "requirement_id", nullable = false)
-    private Long requirementId;
+    @Column(name = "requirement_id", length = 36)
+    private String requirementId;
 
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
-    @Column(name = "code", nullable = false, length = 50)
+    @Column(name = "code", length = 50)
     private String code;
 
-    @Column(name = "type", nullable = false, length = 20)
-    private String type;
+    @Column(name = "data_type", nullable = false, length = 20)
+    private String dataType;
 
-    @Column(name = "description", columnDefinition = "TEXT")
+    @Column(name = "description", columnDefinition = "LONGTEXT")
     private String description;
 
-    @Column(name = "nullable")
+    @Column(name = "required")
     @Builder.Default
-    private Boolean nullable = true;
+    private Boolean required = false;
 
-    @Column(name = "length")
-    @Builder.Default
-    private Integer length = 255;
+    @Column(name = "default_value", length = 255)
+    private String defaultValue;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

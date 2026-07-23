@@ -7,15 +7,13 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface MethodRepository extends JpaRepository<Method, Long> {
+public interface MethodRepository extends JpaRepository<Method, String> {
 
-    List<Method> findByModelId(Long modelId);
+    List<Method> findByModelIdOrderByName(String modelId);
 
-    List<Method> findByModelIdOrderByName(Long modelId);
+    boolean existsByModelIdAndCode(String modelId, String code);
 
-    void deleteByModelId(Long modelId);
+    List<Method> findByModelId(String modelId);
 
-    void deleteByRequirementId(Long requirementId);
-
-    boolean existsByModelIdAndCode(Long modelId, String code);
+    List<Method> findByRequirementId(String requirementId);
 }

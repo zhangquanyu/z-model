@@ -1,33 +1,36 @@
 import request from './index'
 
 export interface Method {
-  id?: number
-  modelId?: number
-  requirementId: number
+  id?: string
+  modelId?: string
+  modelName?: string
+  requirementId?: string
   requirementName?: string
+  parentRequirementId?: string
+  parentRequirementName?: string
   name: string
-  code: string
+  code?: string
   description: string
-  inputParams?: number[]
-  outputParams?: number[]
+  inputParams?: string[]
+  outputParams?: string[]
   createdAt?: string
   updatedAt?: string
 }
 
 export const methodApi = {
-  list(modelId: number, params?: any) {
-    return request.get(`/models/${modelId}/methods`, { params })
+  list(modelId: string) {
+    return request.get(`/models/${modelId}/methods`)
   },
-  getById(modelId: number, methodId: number) {
+  getById(modelId: string, methodId: string) {
     return request.get(`/models/${modelId}/methods/${methodId}`)
   },
-  create(modelId: number, data: Method) {
+  create(modelId: string, data: Method) {
     return request.post(`/models/${modelId}/methods`, data)
   },
-  update(modelId: number, methodId: number, data: Method) {
+  update(modelId: string, methodId: string, data: Method) {
     return request.put(`/models/${modelId}/methods/${methodId}`, data)
   },
-  delete(modelId: number, methodId: number) {
+  delete(modelId: string, methodId: string) {
     return request.delete(`/models/${modelId}/methods/${methodId}`)
   }
 }

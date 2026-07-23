@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -26,6 +27,7 @@ public class EventService {
     @Transactional
     public EventDTO create(EventCreateRequest request) {
         Event event = Event.builder()
+                .id(UUID.randomUUID().toString())
                 .externalFlowNo1(request.getExternalFlowNo1())
                 .externalFlowNo2(request.getExternalFlowNo2())
                 .pointBrandCode(request.getPointBrandCode())
@@ -54,7 +56,7 @@ public class EventService {
     }
 
     @Transactional(readOnly = true)
-    public EventDTO getById(Long id) {
+    public EventDTO getById(String id) {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("事件不存在: " + id));
         return toDTO(event);
@@ -69,7 +71,7 @@ public class EventService {
     }
 
     @Transactional
-    public EventDTO update(Long id, EventUpdateRequest request) {
+    public EventDTO update(String id, EventUpdateRequest request) {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("事件不存在: " + id));
 
@@ -134,7 +136,7 @@ public class EventService {
     }
 
     @Transactional
-    public EventDTO updateStatus(Long id, String status) {
+    public EventDTO updateStatus(String id, String status) {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("事件不存在: " + id));
 
@@ -174,14 +176,14 @@ public class EventService {
     }
 
     @Transactional(readOnly = true)
-    public Boolean checkReversible(Long eventId) {
+    public Boolean checkReversible(String eventId) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("事件不存在: " + eventId));
         return "PENDING".equals(event.getStatus()) || "PROCESSING".equals(event.getStatus());
     }
 
     @Transactional(readOnly = true)
-    public Page<EventDTO> findOriginalEvents(Long eventId, Pageable pageable) {
+    public Page<EventDTO> findOriginalEvents(String eventId, Pageable pageable) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("事件不存在: " + eventId));
         return eventRepository.findByExternalFlowNo1Containing(event.getExternalFlowNo1(), pageable)

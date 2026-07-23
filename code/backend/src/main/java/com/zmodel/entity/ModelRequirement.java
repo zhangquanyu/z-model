@@ -15,12 +15,12 @@ import lombok.NoArgsConstructor;
 public class ModelRequirement {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "id", length = 36)
+    private String id;
 
-    @Column(name = "model_id", nullable = false)
-    private Long modelId;
+    @Column(name = "model_id", nullable = false, length = 36)
+    private String modelId;
 
-    @Column(name = "requirement_id", nullable = false)
-    private Long requirementId;
+    @Column(name = "requirement_id", nullable = false, length = 36)
+    private String requirementId;
 }

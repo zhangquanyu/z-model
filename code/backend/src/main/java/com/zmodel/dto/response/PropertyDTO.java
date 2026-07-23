@@ -13,25 +13,31 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class PropertyDTO {
 
-    private Long id;
+    private String id;
 
-    private Long modelId;
+    private String modelId;
 
-    private Long requirementId;
+    private String modelName;
+
+    private String requirementId;
 
     private String requirementName;
+
+    private String parentRequirementId;
+
+    private String parentRequirementName;
 
     private String name;
 
     private String code;
 
-    private String type;
+    private String dataType;
 
     private String description;
 
-    private Boolean nullable;
+    private Boolean required;
 
-    private Integer length;
+    private String defaultValue;
 
     private LocalDateTime createdAt;
 

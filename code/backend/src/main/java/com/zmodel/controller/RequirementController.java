@@ -13,6 +13,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/requirements")
 @RequiredArgsConstructor
@@ -31,9 +33,22 @@ public class RequirementController {
         return ApiResponse.success(result);
     }
 
+    @GetMapping("/main")
+    public ApiResponse<List<RequirementDTO>> listMainRequirements(
+            @RequestParam(defaultValue = "") String keyword) {
+        List<RequirementDTO> result = requirementService.listMainRequirements(keyword);
+        return ApiResponse.success(result);
+    }
+
     @GetMapping("/{id}")
-    public ApiResponse<RequirementDTO> getById(@PathVariable Long id) {
+    public ApiResponse<RequirementDTO> getById(@PathVariable String id) {
         RequirementDTO result = requirementService.getById(id);
+        return ApiResponse.success(result);
+    }
+
+    @GetMapping("/{id}/sub")
+    public ApiResponse<List<RequirementDTO>> listSubRequirements(@PathVariable String id) {
+        List<RequirementDTO> result = requirementService.listSubRequirements(id);
         return ApiResponse.success(result);
     }
 
@@ -44,13 +59,13 @@ public class RequirementController {
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<RequirementDTO> update(@PathVariable Long id, @Valid @RequestBody RequirementUpdateRequest request) {
+    public ApiResponse<RequirementDTO> update(@PathVariable String id, @Valid @RequestBody RequirementUpdateRequest request) {
         RequirementDTO result = requirementService.update(id, request);
         return ApiResponse.success("更新成功", result);
     }
 
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(@PathVariable Long id) {
+    public ApiResponse<Void> delete(@PathVariable String id) {
         requirementService.delete(id);
         return ApiResponse.success("删除成功", null);
     }

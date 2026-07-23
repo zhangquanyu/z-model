@@ -20,17 +20,16 @@ public class MethodCreateRequest {
     @Size(max = 100, message = "方法名称长度不能超过100个字符")
     private String name;
 
-    @NotBlank(message = "方法编码不能为空")
     @Size(max = 50, message = "方法编码长度不能超过50个字符")
     private String code;
 
-    @Size(max = 5000, message = "方法描述长度不能超过5000个字符")
+    @Size(max = 65535, message = "方法描述长度不能超过65535个字符")
     private String description;
 
-    @NotNull(message = "需求ID不能为空")
-    private Long requirementId;
+    @NotNull(message = "主需求ID不能为空")
+    private String parentRequirementId;
 
-    private List<Long> inputParams;
+    private List<String> inputParams;
 
-    private List<Long> outputParams;
+    private List<String> outputParams;
 }

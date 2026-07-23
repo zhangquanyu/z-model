@@ -2,9 +2,10 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { methodApi } from '@/api/method'
-import { requirementApi } from '@/api/requirement'
+import { modelApi } from '@/api/model'
 import { propertyApi } from '@/api/property'
 import { ArrowLeft, Check, Plus, Close } from '@element-plus/icons-vue'
+import RichTextEditor from '@/components/RichTextEditor.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -14,29 +15,29 @@ const isEdit = computed(() => !!route.params.id)
 const form = ref({
   name: '',
   code: '',
-  requirementId: '',
+  parentRequirementId: '',
   description: '',
   inputParams: [] as string[],
   outputParams: [] as string[]
 })
 
-const requirements = ref<any[]>([])
+const modelRequirements = ref<any[]>([])
 const properties = ref<any[]>([])
 
 onMounted(async () => {
-  await loadRequirements()
+  await loadModelRequirements()
   await loadProperties()
   
   if (isEdit.value && route.params.id) {
     try {
-      const res = await methodApi.getById(Number(modelId), Number(route.params.id))
+      const res = await methodApi.getById(modelId, route.params.id as string)
       form.value = {
         name: res.name || '',
         code: res.code || '',
-        requirementId: res.requirement?.id || '',
+        parentRequirementId: res.parentRequirementId || '',
         description: res.description || '',
-        inputParams: res.params?.filter((p: any) => p.paramType === 'INPUT').map((p: any) => p.property?.id || p.propertyId) || [],
-        outputParams: res.params?.filter((p: any) => p.paramType === 'OUTPUT').map((p: any) => p.property?.id || p.propertyId) || []
+        inputParams: res.inputParams?.map((p: any) => p.id) || [],
+        outputParams: res.outputParams?.map((p: any) => p.id) || []
       }
     } catch (error) {
       console.error('Failed to load method:', error)
@@ -44,19 +45,19 @@ onMounted(async () => {
   }
 })
 
-const loadRequirements = async () => {
+const loadModelRequirements = async () => {
   try {
-    const res = await requirementApi.list({ page: 0, size: 100 })
-    requirements.value = res.content || []
+    const res = await modelApi.getRequirements(modelId)
+    modelRequirements.value = res.data || []
   } catch (error) {
-    console.error('Failed to load requirements:', error)
+    console.error('Failed to load model requirements:', error)
   }
 }
 
 const loadProperties = async () => {
   try {
-    const res = await propertyApi.list(modelId, { page: 0, size: 100 })
-    properties.value = res.content || []
+    const res = await propertyApi.list(modelId)
+    properties.value = res.data || []
   } catch (error) {
     console.error('Failed to load properties:', error)
   }
@@ -120,24 +121,19 @@ const getPropertyType = (id: string) => {
 
 const handleSubmit = async (stay = false) => {
   try {
-    const params = [
-      ...form.value.inputParams.map(id => ({ propertyId: id, paramType: 'INPUT' })),
-      ...form.value.outputParams.map(id => ({ propertyId: id, paramType: 'OUTPUT' }))
-    ]
-    
     const data = {
       name: form.value.name,
       code: form.value.code,
+      parentRequirementId: form.value.parentRequirementId,
       description: form.value.description,
-      modelId,
-      requirement: form.value.requirementId ? { id: form.value.requirementId } : null,
-      params
+      inputParams: form.value.inputParams,
+      outputParams: form.value.outputParams
     }
     
     if (isEdit.value && route.params.id) {
-      await methodApi.update(route.params.id as string, data)
+      await methodApi.update(modelId, route.params.id as string, data)
     } else {
-      await methodApi.create(data)
+      await methodApi.create(modelId, data)
     }
     
     if (!stay) {
@@ -191,10 +187,10 @@ const handleBack = () => {
         
         <div class="form-row">
           <div class="form-group">
-            <label>关联需求</label>
-            <select v-model="form.requirementId">
-              <option value="">选择需求</option>
-              <option v-for="req in requirements" :key="req.id" :value="req.id">
+            <label>关联主需求 <span class="required">*</span></label>
+            <select v-model="form.parentRequirementId" required>
+              <option value="">选择主需求</option>
+              <option v-for="req in modelRequirements" :key="req.id" :value="req.id">
                 {{ req.name }} ({{ req.code }})
               </option>
             </select>
@@ -202,12 +198,8 @@ const handleBack = () => {
         </div>
         
         <div class="form-group full-width">
-          <label>描述</label>
-          <textarea
-            v-model="form.description"
-            rows="4"
-            placeholder="请输入方法描述"
-          ></textarea>
+          <label>子需求描述 <span class="required">*</span></label>
+          <RichTextEditor v-model="form.description" placeholder="请输入子需求描述" />
         </div>
       </div>
       
@@ -372,8 +364,7 @@ const handleBack = () => {
 }
 
 .form-group input,
-.form-group select,
-.form-group textarea {
+.form-group select {
   padding: 12px 16px;
   border: 1px solid #ddd;
   border-radius: 10px;
@@ -389,10 +380,6 @@ const handleBack = () => {
     background-color: #f5f7fa;
     color: #999;
   }
-}
-
-.form-group textarea {
-  resize: vertical;
 }
 
 .param-selector {

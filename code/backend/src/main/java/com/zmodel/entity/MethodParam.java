@@ -15,14 +15,14 @@ import lombok.NoArgsConstructor;
 public class MethodParam {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "id", length = 36)
+    private String id;
 
-    @Column(name = "method_id", nullable = false)
-    private Long methodId;
+    @Column(name = "method_id", nullable = false, length = 36)
+    private String methodId;
 
-    @Column(name = "property_id", nullable = false)
-    private Long propertyId;
+    @Column(name = "property_id", nullable = false, length = 36)
+    private String propertyId;
 
     @Column(name = "param_type", nullable = false, length = 20)
     private String paramType;
