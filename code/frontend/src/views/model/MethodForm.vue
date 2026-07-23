@@ -48,7 +48,7 @@ onMounted(async () => {
 const loadModelRequirements = async () => {
   try {
     const res = await modelApi.getRequirements(modelId)
-    modelRequirements.value = res.data || []
+    modelRequirements.value = res || []
   } catch (error) {
     console.error('Failed to load model requirements:', error)
   }
@@ -57,7 +57,7 @@ const loadModelRequirements = async () => {
 const loadProperties = async () => {
   try {
     const res = await propertyApi.list(modelId)
-    properties.value = res.data || []
+    properties.value = res || []
   } catch (error) {
     console.error('Failed to load properties:', error)
   }

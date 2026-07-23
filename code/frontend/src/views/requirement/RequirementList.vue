@@ -31,7 +31,7 @@ const loadRequirements = async () => {
       params.keyword = searchName.value
     }
     const res = await requirementApi.listMainRequirements(searchName.value || undefined)
-    requirements.value = res.data || []
+    requirements.value = res || []
   } catch (error) {
     console.error('Failed to load requirements:', error)
   }

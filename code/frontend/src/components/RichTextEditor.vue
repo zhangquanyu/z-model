@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch } from 'vue'
 import { QuillEditor } from '@vueup/vue-quill'
 import '@vueup/vue-quill/dist/vue-quill.snow.css'
 
@@ -12,43 +12,24 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: string): void
 }>()
 
-const content = ref(props.modelValue)
+const content = ref(props.modelValue || '')
 
 watch(() => props.modelValue, (newVal) => {
-  content.value = newVal
+  if (newVal !== content.value) {
+    content.value = newVal || ''
+  }
 })
 
-const handleUpdate = (val: string) => {
-  emit('update:modelValue', val)
+const handleUpdate = (val: any) => {
+  const htmlValue = typeof val === 'string' ? val : ''
+  emit('update:modelValue', htmlValue)
 }
-
-const modules = {
-  toolbar: [
-    ['bold', 'italic', 'underline', 'strike'],
-    ['blockquote', 'code-block'],
-    [{ 'header': 1 }, { 'header': 2 }],
-    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-    [{ 'script': 'sub' }, { 'script': 'super' }],
-    [{ 'indent': '-1' }, { 'indent': '+1' }],
-    [{ 'direction': 'rtl' }],
-    [{ 'size': ['small', false, 'large', 'huge'] }],
-    [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-    [{ 'color': [] }, { 'background': [] }],
-    [{ 'font': [] }],
-    [{ 'align': [] }],
-    ['clean'],
-    ['link', 'image']
-  ]
-}
-
-const theme = 'snow'
 </script>
 
 <template>
   <QuillEditor
     v-model:content="content"
-    :modules="modules"
-    :theme="theme"
+    theme="snow"
     :placeholder="placeholder || '请输入内容'"
     content-type="html"
     @update:content="handleUpdate"

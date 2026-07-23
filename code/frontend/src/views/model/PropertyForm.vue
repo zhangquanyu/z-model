@@ -60,7 +60,7 @@ onMounted(async () => {
 const loadModelRequirements = async () => {
   try {
     const res = await modelApi.getRequirements(modelId)
-    modelRequirements.value = res.data || []
+    modelRequirements.value = res || []
   } catch (error) {
     console.error('Failed to load model requirements:', error)
   }
