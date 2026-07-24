@@ -20,13 +20,13 @@ public class MethodDTO {
 
     private String modelName;
 
-    private String requirementId;
+    private List<String> requirementIds;
 
-    private String requirementName;
+    private List<String> requirementNames;
 
-    private String parentRequirementId;
+    private List<String> parentRequirementIds;
 
-    private String parentRequirementName;
+    private List<String> parentRequirementNames;
 
     private String name;
 

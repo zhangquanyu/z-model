@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { propertyApi } from '@/api/property'
 import { modelApi } from '@/api/model'
-import { ArrowLeft, Check } from '@element-plus/icons-vue'
+import { ArrowLeft, Check, Plus, Close } from '@element-plus/icons-vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 
 const router = useRouter()
@@ -15,7 +15,7 @@ const form = ref({
   name: '',
   code: '',
   dataType: 'STRING',
-  parentRequirementId: '',
+  parentRequirementIds: [] as string[],
   required: false,
   defaultValue: '',
   description: ''
@@ -46,7 +46,7 @@ onMounted(async () => {
         name: res.name || '',
         code: res.code || '',
         dataType: res.dataType || 'STRING',
-        parentRequirementId: res.parentRequirementId || '',
+        parentRequirementIds: res.parentRequirementIds || [],
         required: res.required || false,
         defaultValue: res.defaultValue || '',
         description: res.description || ''
@@ -66,20 +66,42 @@ const loadModelRequirements = async () => {
   }
 }
 
+const addRequirement = (id: string) => {
+  if (!form.value.parentRequirementIds.includes(id)) {
+    form.value.parentRequirementIds.push(id)
+  }
+}
+
+const removeRequirement = (id: string) => {
+  const index = form.value.parentRequirementIds.indexOf(id)
+  if (index > -1) {
+    form.value.parentRequirementIds.splice(index, 1)
+  }
+}
+
+const getRequirementName = (id: string) => {
+  const req = modelRequirements.value.find(r => r.id === id)
+  return req?.name || id
+}
+
+const availableRequirements = computed(() => {
+  return modelRequirements.value.filter(r => !form.value.parentRequirementIds.includes(r.id))
+})
+
 const handleSubmit = async (stay = false) => {
   try {
     const data = {
       name: form.value.name,
       code: form.value.code,
       dataType: form.value.dataType,
-      parentRequirementId: form.value.parentRequirementId,
+      parentRequirementIds: form.value.parentRequirementIds,
       required: form.value.required,
       defaultValue: form.value.defaultValue,
       description: form.value.description
     }
     
-    if (isEdit.value && route.params.id) {
-      await propertyApi.update(modelId, route.params.id as string, data)
+    if (isEdit.value && route.params.propertyId) {
+      await propertyApi.update(modelId, route.params.propertyId as string, data)
     } else {
       await propertyApi.create(modelId, data)
     }
@@ -145,13 +167,27 @@ const handleBack = () => {
           
           <div class="form-group">
             <label>关联主需求 <span class="required">*</span></label>
-            <select v-model="form.parentRequirementId" required>
+            <select v-if="availableRequirements.length > 0" @change="addRequirement(($event.target as HTMLSelectElement).value)" class="requirement-select">
               <option value="">选择主需求</option>
-              <option v-for="req in modelRequirements" :key="req.id" :value="req.id">
+              <option v-for="req in availableRequirements" :key="req.id" :value="req.id">
                 {{ req.name }} ({{ req.code }})
               </option>
             </select>
           </div>
+        </div>
+        
+        <div v-if="form.parentRequirementIds.length > 0" class="selected-requirements">
+          <div v-for="id in form.parentRequirementIds" :key="id" class="selected-item">
+            <span>{{ getRequirementName(id) }}</span>
+            <button class="remove-btn" @click="removeRequirement(id)">
+              <Close />
+            </button>
+          </div>
+        </div>
+        
+        <div v-if="form.parentRequirementIds.length === 0" class="empty-hint">
+          <Plus class="hint-icon" />
+          <span>暂无关联主需求，请选择主需求</span>
         </div>
         
         <div class="form-row">
@@ -300,6 +336,81 @@ const handleBack = () => {
   &:read-only {
     background-color: #f5f7fa;
     color: #999;
+  }
+}
+
+.requirement-select {
+  padding: 12px 16px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  font-size: 14px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s ease;
+  
+  &:focus {
+    border-color: #1e3a5f;
+  }
+}
+
+.selected-requirements {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.selected-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: #e8f5e9;
+  border-radius: 20px;
+  
+  span {
+    font-size: 14px;
+    color: #333;
+  }
+  
+  .remove-btn {
+    padding: 4px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    
+    svg {
+      font-size: 14px;
+      color: #666;
+    }
+    
+    &:hover svg {
+      color: #f44336;
+    }
+  }
+}
+
+.empty-hint {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 30px;
+  background-color: #fafbfc;
+  border-radius: 10px;
+  color: #999;
+  font-size: 14px;
+  margin-bottom: 20px;
+  
+  .hint-icon {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+    
+    & svg {
+      width: 24px !important;
+      height: 24px !important;
+    }
   }
 }
 

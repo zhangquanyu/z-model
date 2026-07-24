@@ -35,7 +35,6 @@ CREATE TABLE IF NOT EXISTS property (
     code VARCHAR(50) COMMENT '属性编码',
     data_type VARCHAR(20) NOT NULL COMMENT '数据类型(STRING/INTEGER/LONG/DOUBLE/BOOLEAN/DATE/DATETIME/ENUM/OBJECT/ARRAY)',
     model_id VARCHAR(36) NOT NULL COMMENT '所属模型ID',
-    requirement_id VARCHAR(36) COMMENT '关联需求ID',
     required BOOLEAN DEFAULT FALSE COMMENT '是否必填',
     default_value VARCHAR(255) COMMENT '默认值',
     description LONGTEXT COMMENT '属性描述(富文本HTML)',
@@ -48,7 +47,6 @@ CREATE TABLE IF NOT EXISTS method (
     name VARCHAR(100) NOT NULL COMMENT '方法名称',
     code VARCHAR(50) COMMENT '方法编码',
     model_id VARCHAR(36) NOT NULL COMMENT '所属模型ID',
-    requirement_id VARCHAR(36) COMMENT '关联需求ID',
     description LONGTEXT COMMENT '方法描述(富文本HTML)',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
@@ -62,6 +60,20 @@ CREATE TABLE IF NOT EXISTS method_param (
     sort_order INT DEFAULT 0 COMMENT '排序序号',
     UNIQUE KEY uk_method_property (method_id, property_id, param_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='方法参数表';
+
+CREATE TABLE IF NOT EXISTS property_requirement (
+    id VARCHAR(36) PRIMARY KEY COMMENT '主键ID',
+    property_id VARCHAR(36) NOT NULL COMMENT '属性ID',
+    requirement_id VARCHAR(36) NOT NULL COMMENT '需求ID',
+    UNIQUE KEY uk_property_requirement (property_id, requirement_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='属性需求关联表';
+
+CREATE TABLE IF NOT EXISTS method_requirement (
+    id VARCHAR(36) PRIMARY KEY COMMENT '主键ID',
+    method_id VARCHAR(36) NOT NULL COMMENT '方法ID',
+    requirement_id VARCHAR(36) NOT NULL COMMENT '需求ID',
+    UNIQUE KEY uk_method_requirement (method_id, requirement_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='方法需求关联表';
 
 CREATE TABLE IF NOT EXISTS event (
     id VARCHAR(36) PRIMARY KEY COMMENT '主键ID',

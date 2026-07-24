@@ -15,7 +15,7 @@ const isEdit = computed(() => !!route.params.methodId)
 const form = ref({
   name: '',
   code: '',
-  parentRequirementId: '',
+  parentRequirementIds: [] as string[],
   description: '',
   inputParams: [] as string[],
   outputParams: [] as string[]
@@ -34,7 +34,7 @@ onMounted(async () => {
       form.value = {
         name: res.name || '',
         code: res.code || '',
-        parentRequirementId: res.parentRequirementId || '',
+        parentRequirementIds: res.parentRequirementIds || [],
         description: res.description || '',
         inputParams: res.inputParams?.map((p: any) => p.id) || [],
         outputParams: res.outputParams?.map((p: any) => p.id) || []
@@ -62,6 +62,28 @@ const loadProperties = async () => {
     console.error('Failed to load properties:', error)
   }
 }
+
+const addRequirement = (id: string) => {
+  if (!form.value.parentRequirementIds.includes(id)) {
+    form.value.parentRequirementIds.push(id)
+  }
+}
+
+const removeRequirement = (id: string) => {
+  const index = form.value.parentRequirementIds.indexOf(id)
+  if (index > -1) {
+    form.value.parentRequirementIds.splice(index, 1)
+  }
+}
+
+const getRequirementName = (id: string) => {
+  const req = modelRequirements.value.find(r => r.id === id)
+  return req?.name || id
+}
+
+const availableRequirements = computed(() => {
+  return modelRequirements.value.filter(r => !form.value.parentRequirementIds.includes(r.id))
+})
 
 const availableInputProps = computed(() => {
   return properties.value.filter(p => !form.value.inputParams.includes(p.id) && !form.value.outputParams.includes(p.id))
@@ -124,14 +146,14 @@ const handleSubmit = async (stay = false) => {
     const data = {
       name: form.value.name,
       code: form.value.code,
-      parentRequirementId: form.value.parentRequirementId,
+      parentRequirementIds: form.value.parentRequirementIds,
       description: form.value.description,
       inputParams: form.value.inputParams,
       outputParams: form.value.outputParams
     }
     
-    if (isEdit.value && route.params.id) {
-      await methodApi.update(modelId, route.params.id as string, data)
+    if (isEdit.value && route.params.methodId) {
+      await methodApi.update(modelId, route.params.methodId as string, data)
     } else {
       await methodApi.create(modelId, data)
     }
@@ -188,13 +210,27 @@ const handleBack = () => {
         <div class="form-row">
           <div class="form-group">
             <label>关联主需求 <span class="required">*</span></label>
-            <select v-model="form.parentRequirementId" required>
+            <select v-if="availableRequirements.length > 0" @change="addRequirement(($event.target as HTMLSelectElement).value)" class="requirement-select">
               <option value="">选择主需求</option>
-              <option v-for="req in modelRequirements" :key="req.id" :value="req.id">
+              <option v-for="req in availableRequirements" :key="req.id" :value="req.id">
                 {{ req.name }} ({{ req.code }})
               </option>
             </select>
           </div>
+        </div>
+        
+        <div v-if="form.parentRequirementIds.length > 0" class="selected-requirements">
+          <div v-for="id in form.parentRequirementIds" :key="id" class="selected-item">
+            <span>{{ getRequirementName(id) }}</span>
+            <button class="remove-btn" @click="removeRequirement(id)">
+              <Close />
+            </button>
+          </div>
+        </div>
+        
+        <div v-if="form.parentRequirementIds.length === 0" class="empty-hint">
+          <Plus class="hint-icon" />
+          <span>暂无关联主需求，请选择主需求</span>
         </div>
         
         <div class="form-group full-width">
@@ -382,11 +418,7 @@ const handleBack = () => {
   }
 }
 
-.param-selector {
-  margin-bottom: 20px;
-}
-
-.param-select {
+.requirement-select {
   padding: 12px 16px;
   border: 1px solid #ddd;
   border-radius: 10px;
@@ -400,10 +432,11 @@ const handleBack = () => {
   }
 }
 
-.selected-params {
+.selected-requirements {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  margin-bottom: 20px;
 }
 
 .selected-item {
@@ -465,6 +498,30 @@ const handleBack = () => {
       height: 24px !important;
     }
   }
+}
+
+.param-selector {
+  margin-bottom: 20px;
+}
+
+.param-select {
+  padding: 12px 16px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  font-size: 14px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s ease;
+  
+  &:focus {
+    border-color: #1e3a5f;
+  }
+}
+
+.selected-params {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .form-actions {

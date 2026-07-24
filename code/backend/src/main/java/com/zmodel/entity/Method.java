@@ -23,9 +23,6 @@ public class Method {
     @Column(name = "model_id", nullable = false, length = 36)
     private String modelId;
 
-    @Column(name = "requirement_id", length = 36)
-    private String requirementId;
-
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 

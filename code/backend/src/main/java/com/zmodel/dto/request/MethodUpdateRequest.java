@@ -1,7 +1,7 @@
 package com.zmodel.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,8 +26,8 @@ public class MethodUpdateRequest {
     @Size(max = 65535, message = "方法描述长度不能超过65535个字符")
     private String description;
 
-    @NotNull(message = "主需求ID不能为空")
-    private String parentRequirementId;
+    @NotEmpty(message = "主需求ID不能为空")
+    private List<String> parentRequirementIds;
 
     private List<String> inputParams;
 

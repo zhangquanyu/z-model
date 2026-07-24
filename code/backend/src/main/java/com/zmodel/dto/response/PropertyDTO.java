@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -19,13 +20,13 @@ public class PropertyDTO {
 
     private String modelName;
 
-    private String requirementId;
+    private List<String> requirementIds;
 
-    private String requirementName;
+    private List<String> requirementNames;
 
-    private String parentRequirementId;
+    private List<String> parentRequirementIds;
 
-    private String parentRequirementName;
+    private List<String> parentRequirementNames;
 
     private String name;
 
