@@ -32,14 +32,17 @@ public class ModelService {
 
     @Transactional
     public ModelDTO create(ModelCreateRequest request) {
-        if (modelRepository.existsByCode(request.getCode())) {
-            throw new RuntimeException("模型编码已存在: " + request.getCode());
+        String code = request.getCode();
+        if (code == null || code.isEmpty()) {
+            code = generateCode();
+        } else if (modelRepository.existsByCode(code)) {
+            throw new RuntimeException("模型编码已存在: " + code);
         }
 
         Model model = Model.builder()
                 .id(UUID.randomUUID().toString())
                 .name(request.getName())
-                .code(request.getCode())
+                .code(code)
                 .description(request.getDescription())
                 .build();
 
@@ -143,6 +146,11 @@ public class ModelService {
                         .requirementType(r.getRequirementType())
                         .build())
                 .collect(Collectors.toList());
+    }
+
+    private String generateCode() {
+        long count = modelRepository.count();
+        return String.format("MODEL-%04d", count + 1);
     }
 
     private ModelDTO toDTO(Model entity) {

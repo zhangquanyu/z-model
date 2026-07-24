@@ -9,8 +9,8 @@ import RichTextEditor from '@/components/RichTextEditor.vue'
 
 const router = useRouter()
 const route = useRoute()
-const modelId = route.params.modelId as string
-const isEdit = computed(() => !!route.params.id)
+const modelId = route.params.id as string
+const isEdit = computed(() => !!route.params.methodId)
 
 const form = ref({
   name: '',
@@ -28,9 +28,9 @@ onMounted(async () => {
   await loadModelRequirements()
   await loadProperties()
   
-  if (isEdit.value && route.params.id) {
+  if (isEdit.value && route.params.methodId) {
     try {
-      const res = await methodApi.getById(modelId, route.params.id as string)
+      const res = await methodApi.getById(modelId, route.params.methodId as string)
       form.value = {
         name: res.name || '',
         code: res.code || '',
@@ -57,7 +57,7 @@ const loadModelRequirements = async () => {
 const loadProperties = async () => {
   try {
     const res = await propertyApi.list(modelId)
-    properties.value = res || []
+    properties.value = res.content || []
   } catch (error) {
     console.error('Failed to load properties:', error)
   }

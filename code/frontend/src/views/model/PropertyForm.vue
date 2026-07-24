@@ -8,8 +8,8 @@ import RichTextEditor from '@/components/RichTextEditor.vue'
 
 const router = useRouter()
 const route = useRoute()
-const modelId = route.params.modelId as string
-const isEdit = computed(() => !!route.params.id)
+const modelId = route.params.id as string
+const isEdit = computed(() => !!route.params.propertyId)
 
 const form = ref({
   name: '',
@@ -39,9 +39,9 @@ const dataTypeOptions = [
 onMounted(async () => {
   await loadModelRequirements()
   
-  if (isEdit.value && route.params.id) {
+  if (isEdit.value && route.params.propertyId) {
     try {
-      const res = await propertyApi.getById(modelId, route.params.id as string)
+      const res = await propertyApi.getById(modelId, route.params.propertyId as string)
       form.value = {
         name: res.name || '',
         code: res.code || '',

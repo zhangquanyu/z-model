@@ -7,9 +7,11 @@ import com.zmodel.dto.response.PropertyDTO;
 import com.zmodel.service.PropertyService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/models/{modelId}/properties")
@@ -19,8 +21,13 @@ public class PropertyController {
     private final PropertyService propertyService;
 
     @GetMapping
-    public ApiResponse<List<PropertyDTO>> list(@PathVariable String modelId) {
-        List<PropertyDTO> result = propertyService.listByModelId(modelId);
+    public ApiResponse<Page<PropertyDTO>> list(
+            @PathVariable String modelId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "") String name) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "name"));
+        Page<PropertyDTO> result = propertyService.listByModelId(modelId, name, pageable);
         return ApiResponse.success(result);
     }
 

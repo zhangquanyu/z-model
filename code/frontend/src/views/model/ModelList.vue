@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { modelApi } from '@/api/model'
-import { Search, Edit, Delete, View, Refresh, Setting } from '@element-plus/icons-vue'
+import { Search, Edit, Delete, View, Refresh, Setting, Files } from '@element-plus/icons-vue'
 import { ElTooltip } from 'element-plus'
 
 const router = useRouter()
@@ -131,6 +131,11 @@ onMounted(() => {
               <el-tooltip content="属性" placement="top">
                 <button class="action-btn property" @click="handleManageProperties(model.id)">
                   <Setting />
+                </button>
+              </el-tooltip>
+              <el-tooltip content="方法" placement="top">
+                <button class="action-btn method" @click="handleManageMethods(model.id)">
+                  <Files />
                 </button>
               </el-tooltip>
               <el-tooltip content="删除" placement="top">
@@ -343,6 +348,18 @@ onMounted(() => {
     
     &:hover {
       background-color: #c8e6c9;
+    }
+  }
+  
+  &.method {
+    background-color: #f3e5f5;
+    
+    svg {
+      color: #9c27b0;
+    }
+    
+    &:hover {
+      background-color: #e1bee7;
     }
   }
   

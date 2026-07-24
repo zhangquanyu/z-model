@@ -15,6 +15,8 @@ import com.zmodel.repository.PropertyRepository;
 import com.zmodel.repository.RequirementRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -97,14 +99,12 @@ public class MethodService {
     }
 
     @Transactional(readOnly = true)
-    public List<MethodDTO> listByModelId(String modelId) {
+    public Page<MethodDTO> listByModelId(String modelId, String name, Pageable pageable) {
         if (!modelRepository.existsById(modelId)) {
             throw new RuntimeException("模型不存在: " + modelId);
         }
-        List<Method> methods = methodRepository.findByModelIdOrderByName(modelId);
-        return methods.stream()
-                .map(this::toDTO)
-                .collect(Collectors.toList());
+        Page<Method> methods = methodRepository.findByModelIdAndNameContaining(modelId, name, pageable);
+        return methods.map(this::toDTO);
     }
 
     @Transactional

@@ -12,7 +12,7 @@ const activeTab = ref('properties')
 
 onMounted(async () => {
   try {
-    const res = await modelApi.get(modelId)
+    const res = await modelApi.getById(modelId)
     model.value = res
   } catch (error) {
     console.error('Failed to load model:', error)
@@ -329,8 +329,15 @@ const getParamNames = (params: any[], paramType: string) => {
 }
 
 .req-icon {
-  font-size: 20px;
+  font-size: 16px;
   color: #667eea;
+  width: 16px;
+  height: 16px;
+  
+  svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
 }
 
 .req-info {

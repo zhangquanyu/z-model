@@ -10,6 +10,8 @@ import com.zmodel.repository.PropertyRepository;
 import com.zmodel.repository.RequirementRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -89,14 +91,12 @@ public class PropertyService {
     }
 
     @Transactional(readOnly = true)
-    public List<PropertyDTO> listByModelId(String modelId) {
+    public Page<PropertyDTO> listByModelId(String modelId, String name, Pageable pageable) {
         if (!modelRepository.existsById(modelId)) {
             throw new RuntimeException("模型不存在: " + modelId);
         }
-        List<Property> properties = propertyRepository.findByModelIdOrderByName(modelId);
-        return properties.stream()
-                .map(this::toDTO)
-                .collect(Collectors.toList());
+        Page<Property> properties = propertyRepository.findByModelIdAndNameContaining(modelId, name, pageable);
+        return properties.map(this::toDTO);
     }
 
     @Transactional

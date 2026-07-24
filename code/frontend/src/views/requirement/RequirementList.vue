@@ -41,6 +41,10 @@ const handleSearch = () => {
   loadRequirements()
 }
 
+const handleView = (id: string) => {
+  router.push(`/requirements/${id}`)
+}
+
 const handleEdit = (id: string) => {
   router.push(`/requirements/${id}/edit`)
 }
@@ -140,6 +144,11 @@ onMounted(() => {
               <td>{{ priorityMap[req.priority] || req.priority }}</td>
               <td>{{ req.createdAt?.slice(0, 10) }}</td>
               <td class="actions">
+                <el-tooltip content="详情" placement="top">
+                  <button class="action-btn view" @click="handleView(req.id)">
+                    <View />
+                  </button>
+                </el-tooltip>
                 <el-tooltip content="编辑" placement="top">
                   <button class="action-btn edit" @click="handleEdit(req.id)">
                     <Edit />

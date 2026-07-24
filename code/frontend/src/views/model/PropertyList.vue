@@ -8,7 +8,7 @@ import { ElTooltip } from 'element-plus'
 
 const router = useRouter()
 const route = useRoute()
-const modelId = route.params.modelId as string
+const modelId = route.params.id as string
 
 const properties = ref<any[]>([])
 const total = ref(0)
@@ -244,9 +244,16 @@ onMounted(() => {
 }
 
 .search-icon {
-  font-size: 18px;
+  font-size: 16px;
   color: #999;
   margin-right: 12px;
+  width: 16px;
+  height: 16px;
+  
+  & svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
 }
 
 .search-input-wrapper input {

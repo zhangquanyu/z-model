@@ -15,7 +15,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/requirements/:id',
     name: 'RequirementDetail',
-    component: () => import('@/views/requirement/RequirementForm.vue')
+    component: () => import('@/views/requirement/RequirementDetail.vue')
   },
   {
     path: '/requirements/create',
