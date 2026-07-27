@@ -3,15 +3,12 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { requirementApi } from '@/api/requirement'
 import { modelApi } from '@/api/model'
-import { eventApi } from '@/api/event'
-import { Document, Box, TrendCharts, ArrowUpBold } from '@element-plus/icons-vue'
+import { Document, Box, ArrowUpBold } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const stats = ref({
   requirements: 0,
-  models: 0,
-  events: 0,
-  totalAmount: 0
+  models: 0
 })
 
 const recentRequirements = ref<any[]>([])
@@ -26,12 +23,6 @@ onMounted(async () => {
     const modelRes = await modelApi.list({ page: 0, size: 5 })
     stats.value.models = modelRes.totalElements || 0
     recentModels.value = modelRes.content || []
-
-    const eventRes = await eventApi.list({ page: 0, size: 1 })
-    stats.value.events = eventRes.totalElements || 0
-
-    const totalRes = await eventApi.calculateTotal({})
-    stats.value.totalAmount = totalRes.totalAmount || 0
   } catch (error) {
     console.error('Failed to load dashboard data:', error)
   }
@@ -62,26 +53,6 @@ const handleNavigate = (path: string) => {
         <div class="stat-content">
           <div class="stat-value">{{ stats.models }}</div>
           <div class="stat-label">模型数量</div>
-        </div>
-      </div>
-      
-      <div class="stat-card" @click="handleNavigate('/events')">
-        <div class="stat-icon event">
-          <TrendCharts />
-        </div>
-        <div class="stat-content">
-          <div class="stat-value">{{ stats.events }}</div>
-          <div class="stat-label">事件流水</div>
-        </div>
-      </div>
-      
-      <div class="stat-card">
-        <div class="stat-icon amount">
-          <ArrowUpBold />
-        </div>
-        <div class="stat-content">
-          <div class="stat-value">¥{{ stats.totalAmount.toLocaleString() }}</div>
-          <div class="stat-label">事件总额</div>
         </div>
       </div>
     </div>
@@ -141,7 +112,7 @@ const handleNavigate = (path: string) => {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
 }
 

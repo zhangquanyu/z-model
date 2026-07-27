@@ -4,12 +4,18 @@ import com.zmodel.dto.request.ModelCreateRequest;
 import com.zmodel.dto.request.ModelUpdateRequest;
 import com.zmodel.dto.response.ModelDTO;
 import com.zmodel.dto.response.RequirementDTO;
+import com.zmodel.dto.response.PropertyDTO;
+import com.zmodel.dto.response.MethodDTO;
 import com.zmodel.entity.Model;
 import com.zmodel.entity.ModelRequirement;
 import com.zmodel.entity.Requirement;
+import com.zmodel.entity.Property;
+import com.zmodel.entity.Method;
 import com.zmodel.repository.ModelRepository;
 import com.zmodel.repository.ModelRequirementRepository;
 import com.zmodel.repository.RequirementRepository;
+import com.zmodel.repository.PropertyRepository;
+import com.zmodel.repository.MethodRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -29,6 +35,8 @@ public class ModelService {
     private final ModelRepository modelRepository;
     private final ModelRequirementRepository modelRequirementRepository;
     private final RequirementRepository requirementRepository;
+    private final PropertyRepository propertyRepository;
+    private final MethodRepository methodRepository;
 
     @Transactional
     public ModelDTO create(ModelCreateRequest request) {
@@ -170,12 +178,43 @@ public class ModelService {
                         .build())
                 .collect(Collectors.toList());
 
+        List<PropertyDTO> properties = propertyRepository.findByModelId(entity.getId())
+                .stream()
+                .map(p -> PropertyDTO.builder()
+                        .id(p.getId())
+                        .modelId(p.getModelId())
+                        .name(p.getName())
+                        .code(p.getCode())
+                        .dataType(p.getDataType())
+                        .description(p.getDescription())
+                        .required(p.getRequired())
+                        .defaultValue(p.getDefaultValue())
+                        .createdAt(p.getCreatedAt())
+                        .updatedAt(p.getUpdatedAt())
+                        .build())
+                .collect(Collectors.toList());
+
+        List<MethodDTO> methods = methodRepository.findByModelId(entity.getId())
+                .stream()
+                .map(m -> MethodDTO.builder()
+                        .id(m.getId())
+                        .modelId(m.getModelId())
+                        .name(m.getName())
+                        .code(m.getCode())
+                        .description(m.getDescription())
+                        .createdAt(m.getCreatedAt())
+                        .updatedAt(m.getUpdatedAt())
+                        .build())
+                .collect(Collectors.toList());
+
         return ModelDTO.builder()
                 .id(entity.getId())
                 .name(entity.getName())
                 .code(entity.getCode())
                 .description(entity.getDescription())
                 .requirements(requirements)
+                .properties(properties)
+                .methods(methods)
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();

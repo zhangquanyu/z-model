@@ -98,7 +98,6 @@ onMounted(() => {
           <tr>
             <th>模型名称</th>
             <th>模型编号</th>
-            <th>描述</th>
             <th>关联需求</th>
             <th>属性数量</th>
             <th>方法数量</th>
@@ -110,7 +109,6 @@ onMounted(() => {
           <tr v-for="model in models" :key="model.id">
             <td>{{ model.name }}</td>
             <td>{{ model.code }}</td>
-            <td class="description-cell">{{ model.description || '-' }}</td>
             <td>
               <span class="tag">{{ model.requirements?.length || 0 }}个</span>
             </td>
@@ -146,7 +144,7 @@ onMounted(() => {
             </td>
           </tr>
           <tr v-if="models.length === 0">
-            <td colspan="8" class="empty-row">暂无数据</td>
+            <td colspan="7" class="empty-row">暂无数据</td>
           </tr>
         </tbody>
       </table>

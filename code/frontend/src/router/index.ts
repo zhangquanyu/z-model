@@ -77,27 +77,7 @@ const routes: RouteRecordRaw[] = [
     name: 'MethodEdit',
     component: () => import('@/views/model/MethodForm.vue')
   },
-  {
-    path: '/events',
-    name: 'EventList',
-    component: () => import('@/views/event/EventList.vue')
-  },
-  {
-    path: '/events/:id',
-    name: 'EventDetail',
-    component: () => import('@/views/event/EventForm.vue')
-  },
-  {
-    path: '/events/create',
-    name: 'EventCreate',
-    component: () => import('@/views/event/EventForm.vue')
-  },
-  {
-    path: '/events/:id/edit',
-    name: 'EventEdit',
-    component: () => import('@/views/event/EventForm.vue')
-  }
-]
+  ]
 
 const router = createRouter({
   history: createWebHistory(),

@@ -31,6 +31,10 @@ const handleManageMethods = () => {
   router.push(`/models/${modelId}/methods`)
 }
 
+const handleViewRequirement = (requirementId: string) => {
+  router.push(`/requirements/${requirementId}`)
+}
+
 const getTypeName = (type: string) => {
   const map: Record<string, string> = {
     STRING: '字符串',
@@ -47,8 +51,8 @@ const getTypeName = (type: string) => {
   return map[type] || type
 }
 
-const getParamNames = (params: any[], paramType: string) => {
-  return params?.filter((p: any) => p.paramType === paramType).map(p => p.property?.name).join(', ') || '-'
+const getParamNames = (params: any[]) => {
+  return params?.map((p: any) => p.name).join(', ') || '-'
 }
 </script>
 
@@ -96,14 +100,19 @@ const getParamNames = (params: any[], paramType: string) => {
         </div>
         <div class="description-box">
           <span class="info-label">描述</span>
-          <p>{{ model.description || '暂无描述' }}</p>
+          <div v-html="model.description || '<span class=\'empty-text\'>暂无描述</span>'"></div>
         </div>
       </div>
       
       <div class="requirements-section">
         <h3>关联需求</h3>
         <div v-if="model.requirements?.length > 0" class="requirements-list">
-          <div v-for="req in model.requirements" :key="req.id" class="requirement-item">
+          <div 
+            v-for="req in model.requirements" 
+            :key="req.id" 
+            class="requirement-item"
+            @click="handleViewRequirement(req.id)"
+          >
             <Document class="req-icon" />
             <div class="req-info">
               <div class="req-name">{{ req.name }}</div>
@@ -181,8 +190,8 @@ const getParamNames = (params: any[], paramType: string) => {
               <tr v-for="method in model.methods" :key="method.id">
                 <td>{{ method.name }}</td>
                 <td>{{ method.code }}</td>
-                <td>{{ getParamNames(method.params, 'INPUT') }}</td>
-                <td>{{ getParamNames(method.params, 'OUTPUT') }}</td>
+                <td>{{ getParamNames(method.inputParams) }}</td>
+                <td>{{ getParamNames(method.outputParams) }}</td>
               </tr>
               <tr v-if="!model.methods?.length">
                 <td colspan="4" class="empty-row">暂无方法</td>
@@ -305,11 +314,15 @@ const getParamNames = (params: any[], paramType: string) => {
   background-color: white;
   border-radius: 10px;
   
-  p {
+  div {
     font-size: 14px;
     color: #666;
     margin-top: 8px;
-    line-height: 1.6;
+    line-height: 1.8;
+  }
+  
+  .empty-text {
+    color: #999;
   }
 }
 
@@ -326,6 +339,13 @@ const getParamNames = (params: any[], paramType: string) => {
   padding: 16px;
   background-color: white;
   border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background-color: #f5f7fa;
+    transform: translateX(4px);
+  }
 }
 
 .req-icon {

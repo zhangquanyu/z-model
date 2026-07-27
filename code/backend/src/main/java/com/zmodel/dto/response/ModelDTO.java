@@ -24,6 +24,10 @@ public class ModelDTO {
 
     private List<RequirementDTO> requirements;
 
+    private List<PropertyDTO> properties;
+
+    private List<MethodDTO> methods;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

@@ -18,6 +18,4 @@ public interface MethodRepository extends JpaRepository<Method, String> {
     boolean existsByModelIdAndCode(String modelId, String code);
 
     List<Method> findByModelId(String modelId);
-
-    List<Method> findByRequirementId(String requirementId);
 }

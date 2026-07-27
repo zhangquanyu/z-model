@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { requirementApi } from '@/api/requirement'
 import { ArrowLeft, Edit, View, Refresh } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
-const requirementId = route.params.id as string
 
 const requirement = ref<any>(null)
 const subRequirements = ref<any[]>([])
@@ -27,18 +26,18 @@ const priorityMap: Record<string, string> = {
 
 const isMainRequirement = computed(() => requirement.value?.requirementType === 'MAIN')
 
-const loadRequirement = async () => {
+const loadRequirement = async (id: string) => {
   try {
-    const res = await requirementApi.getById(requirementId)
+    const res = await requirementApi.getById(id)
     requirement.value = res
   } catch (error) {
     console.error('Failed to load requirement:', error)
   }
 }
 
-const loadSubRequirements = async () => {
+const loadSubRequirements = async (id: string) => {
   try {
-    const res = await requirementApi.listSubRequirements(requirementId)
+    const res = await requirementApi.listSubRequirements(id)
     subRequirements.value = res || []
   } catch (error) {
     console.error('Failed to load sub requirements:', error)
@@ -50,17 +49,34 @@ const handleBack = () => {
 }
 
 const handleEdit = () => {
-  router.push(`/requirements/${requirementId}/edit`)
+  router.push(`/requirements/${route.params.id}/edit`)
 }
 
 const handleViewSubRequirement = (subId: string) => {
   router.push(`/requirements/${subId}`)
 }
 
-onMounted(async () => {
-  await loadRequirement()
+const handleViewParentRequirement = (parentId: string) => {
+  router.push(`/requirements/${parentId}`)
+}
+
+const initData = async () => {
+  const id = route.params.id as string
+  await loadRequirement(id)
   if (isMainRequirement.value) {
-    await loadSubRequirements()
+    await loadSubRequirements(id)
+  } else {
+    subRequirements.value = []
+  }
+}
+
+onMounted(async () => {
+  await initData()
+})
+
+watch(() => route.params.id, async (newId) => {
+  if (newId) {
+    await initData()
   }
 })
 </script>
@@ -102,9 +118,16 @@ onMounted(async () => {
                 {{ isMainRequirement ? '主需求' : '子需求' }}
               </span>
             </div>
-            <div class="info-item">
+            <div class="info-item" v-if="!isMainRequirement">
               <label>所属主需求</label>
-              <span class="info-value">{{ requirement.parentName || '-' }}</span>
+              <span 
+                v-if="requirement.parentName" 
+                class="info-value link-value"
+                @click="handleViewParentRequirement(requirement.parentId)"
+              >
+                {{ requirement.parentName }}
+              </span>
+              <span v-else class="info-value">-</span>
             </div>
           </div>
           <div class="info-row">
@@ -322,6 +345,17 @@ onMounted(async () => {
   font-size: 14px;
   color: #333;
   font-weight: 500;
+}
+
+.link-value {
+  color: #1e3a5f;
+  cursor: pointer;
+  text-decoration: underline;
+  
+  &:hover {
+    color: #2d4a6f;
+    text-decoration: none;
+  }
 }
 
 .type-badge,

@@ -5,7 +5,6 @@ import {
   Document,
   Box,
   Setting,
-  TrendCharts,
   Plus,
   ArrowLeft,
   ArrowRight
@@ -19,11 +18,13 @@ const collapsed = ref(false)
 const menuItems = [
   { path: '/', name: '仪表盘', icon: Monitor },
   { path: '/requirements', name: '需求管理', icon: Document },
-  { path: '/models', name: '模型管理', icon: Box },
-  { path: '/events', name: '事件流水', icon: TrendCharts }
+  { path: '/models', name: '模型管理', icon: Box }
 ]
 
 const isActive = (path: string) => {
+  if (path === '/') {
+    return route.path === '/'
+  }
   return route.path.startsWith(path)
 }
 
@@ -69,13 +70,11 @@ const handleNavigation = (path: string) => {
           <h1>{{ route.name === 'Dashboard' ? '仪表盘' : 
               route.name === 'RequirementList' ? '需求管理' :
               route.name === 'ModelList' ? '模型管理' :
-              route.name === 'EventList' ? '事件流水' :
               route.name === 'ModelDetail' ? '模型详情' :
               route.name === 'PropertyList' ? '属性管理' :
               route.name === 'MethodList' ? '方法管理' :
               route.name === 'RequirementCreate' || route.name === 'RequirementEdit' ? '需求编辑' :
-              route.name === 'ModelCreate' ? '模型创建' :
-              route.name === 'EventCreate' || route.name === 'EventEdit' ? '事件编辑' : '页面' }}</h1>
+              route.name === 'ModelCreate' ? '模型创建' : '页面' }}</h1>
         </div>
         <div class="header-actions">
           <router-link 
@@ -93,14 +92,6 @@ const handleNavigation = (path: string) => {
           >
             <Plus class="btn-icon" />
             <span>新建模型</span>
-          </router-link>
-          <router-link 
-            v-if="route.path === '/events'" 
-            to="/events/create"
-            class="create-btn"
-          >
-            <Plus class="btn-icon" />
-            <span>登记事件</span>
           </router-link>
         </div>
       </header>

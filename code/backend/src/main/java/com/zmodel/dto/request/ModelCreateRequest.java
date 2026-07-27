@@ -19,7 +19,6 @@ public class ModelCreateRequest {
     @Size(max = 100, message = "模型名称长度不能超过100个字符")
     private String name;
 
-    @NotBlank(message = "模型编码不能为空")
     @Size(max = 50, message = "模型编码长度不能超过50个字符")
     private String code;
 

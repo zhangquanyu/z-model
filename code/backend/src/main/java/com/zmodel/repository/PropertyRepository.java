@@ -20,6 +20,4 @@ public interface PropertyRepository extends JpaRepository<Property, String> {
     boolean existsByModelIdAndIdNot(String modelId, String id);
 
     List<Property> findByModelId(String modelId);
-
-    List<Property> findByRequirementId(String requirementId);
 }

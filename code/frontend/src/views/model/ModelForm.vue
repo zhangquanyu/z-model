@@ -24,7 +24,7 @@ onMounted(async () => {
   
   if (isEdit.value && route.params.id) {
     try {
-      const res = await modelApi.get(route.params.id as string)
+      const res = await modelApi.getById(route.params.id as string)
       form.value = {
         name: res.name || '',
         code: res.code || '',
