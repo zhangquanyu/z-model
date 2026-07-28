@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { propertyApi } from '@/api/property'
 import { requirementApi } from '@/api/requirement'
-import { Search, Edit, Delete, Refresh, Plus } from '@element-plus/icons-vue'
+import { Search, Edit, Delete, Refresh, Plus, View } from '@element-plus/icons-vue'
 import { ElTooltip } from 'element-plus'
 
 const router = useRouter()
@@ -48,6 +48,10 @@ const handlePageChange = (newPage: number) => {
 
 const handleEdit = (id: string) => {
   router.push(`/models/${modelId}/properties/${id}/edit`)
+}
+
+const handleView = (id: string) => {
+  router.push(`/models/${modelId}/properties/${id}`)
 }
 
 const handleDelete = async (id: string) => {
@@ -147,6 +151,11 @@ onMounted(() => {
             <td>{{ prop.defaultValue || '-' }}</td>
             <td>{{ prop.createdAt?.slice(0, 10) }}</td>
             <td class="actions">
+              <el-tooltip content="查看" placement="top">
+                <button class="action-btn view" @click="handleView(prop.id)">
+                  <View />
+                </button>
+              </el-tooltip>
               <el-tooltip content="编辑" placement="top">
                 <button class="action-btn edit" @click="handleEdit(prop.id)">
                   <Edit />
@@ -364,6 +373,18 @@ onMounted(() => {
   font-size: 13px;
   font-weight: 500;
   transition: background-color 0.2s ease;
+  
+  &.view {
+    background-color: #e3f2fd;
+    
+    svg {
+      color: #2196f3;
+    }
+    
+    &:hover {
+      background-color: #bbdefb;
+    }
+  }
   
   &.edit {
     background-color: #fff3e0;

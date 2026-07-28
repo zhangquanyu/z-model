@@ -53,6 +53,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/model/PropertyList.vue')
   },
   {
+    path: '/models/:id/properties/:propertyId',
+    name: 'PropertyDetail',
+    component: () => import('@/views/model/PropertyDetail.vue')
+  },
+  {
     path: '/models/:id/properties/create',
     name: 'PropertyCreate',
     component: () => import('@/views/model/PropertyForm.vue')
@@ -66,6 +71,11 @@ const routes: RouteRecordRaw[] = [
     path: '/models/:id/methods',
     name: 'MethodList',
     component: () => import('@/views/model/MethodList.vue')
+  },
+  {
+    path: '/models/:id/methods/:methodId',
+    name: 'MethodDetail',
+    component: () => import('@/views/model/MethodDetail.vue')
   },
   {
     path: '/models/:id/methods/create',

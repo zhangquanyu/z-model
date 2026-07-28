@@ -48,20 +48,31 @@ onMounted(async () => {
   }
 })
 
+const resetForm = () => {
+  form.value = {
+    name: '',
+    code: '',
+    description: '',
+    status: 'DRAFT',
+    priority: 'MEDIUM'
+  }
+}
+
 const handleSubmit = async (stay = false) => {
   try {
     if (isEdit.value && route.params.id) {
       await requirementApi.update(route.params.id as string, form.value)
-    } else {
-      await requirementApi.create(form.value)
-    }
-    
-    if (stay) {
-      if (!isEdit.value) {
+      if (!stay) {
         router.push('/requirements')
       }
     } else {
-      router.push('/requirements')
+      await requirementApi.create(form.value)
+      if (stay) {
+        // 保存并继续：重置表单，打开新的新建界面
+        resetForm()
+      } else {
+        router.push('/requirements')
+      }
     }
   } catch (error) {
     console.error('Failed to save requirement:', error)

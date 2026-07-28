@@ -22,11 +22,73 @@ const form = ref({
 })
 
 const modelRequirements = ref<any[]>([])
-const properties = ref<any[]>([])
+const allProperties = ref<any[]>([])
+const inputProps = ref<any[]>([])
+const outputProps = ref<any[]>([])
+
+const selectedInputProp = ref('')
+const selectedOutputProp = ref('')
+const inputSearchLoading = ref(false)
+const outputSearchLoading = ref(false)
+
+const loadProperties = async (searchName = '') => {
+  try {
+    const res = await propertyApi.list(modelId, { name: searchName, size: 100 })
+    return res.content || []
+  } catch (error) {
+    console.error('Failed to load properties:', error)
+    return []
+  }
+}
+
+const onInputSearch = async (query: string) => {
+  if (!query) {
+    inputProps.value = allProperties.value.filter(p => !form.value.inputParams.includes(p.id) && !form.value.outputParams.includes(p.id))
+    return
+  }
+  inputSearchLoading.value = true
+  inputProps.value = await loadProperties(query)
+  inputProps.value = inputProps.value.filter(p => !form.value.inputParams.includes(p.id) && !form.value.outputParams.includes(p.id))
+  inputSearchLoading.value = false
+}
+
+const onOutputSearch = async (query: string) => {
+  if (!query) {
+    outputProps.value = allProperties.value.filter(p => !form.value.outputParams.includes(p.id) && !form.value.inputParams.includes(p.id))
+    return
+  }
+  outputSearchLoading.value = true
+  outputProps.value = await loadProperties(query)
+  outputProps.value = outputProps.value.filter(p => !form.value.outputParams.includes(p.id) && !form.value.inputParams.includes(p.id))
+  outputSearchLoading.value = false
+}
+
+const handleInputParamSelect = (value: string) => {
+  if (value) {
+    addInputParam(value)
+    selectedInputProp.value = ''
+    inputProps.value = allProperties.value.filter(p => !form.value.inputParams.includes(p.id) && !form.value.outputParams.includes(p.id))
+  }
+}
+
+const handleOutputParamSelect = (value: string) => {
+  if (value) {
+    addOutputParam(value)
+    selectedOutputProp.value = ''
+    outputProps.value = allProperties.value.filter(p => !form.value.outputParams.includes(p.id) && !form.value.inputParams.includes(p.id))
+  }
+}
 
 onMounted(async () => {
   await loadModelRequirements()
-  await loadProperties()
+  allProperties.value = await loadProperties()
+  inputProps.value = allProperties.value.filter(p => !form.value.inputParams.includes(p.id) && !form.value.outputParams.includes(p.id))
+  outputProps.value = allProperties.value.filter(p => !form.value.outputParams.includes(p.id) && !form.value.inputParams.includes(p.id))
+  
+  // 新建方法时，默认选中模型关联的所有需求
+  if (!isEdit.value) {
+    form.value.parentRequirementIds = modelRequirements.value.map(r => r.id)
+  }
   
   if (isEdit.value && route.params.methodId) {
     try {
@@ -39,6 +101,9 @@ onMounted(async () => {
         inputParams: res.inputParams?.map((p: any) => p.id) || [],
         outputParams: res.outputParams?.map((p: any) => p.id) || []
       }
+      // 重新过滤可用属性
+      inputProps.value = allProperties.value.filter(p => !form.value.inputParams.includes(p.id) && !form.value.outputParams.includes(p.id))
+      outputProps.value = allProperties.value.filter(p => !form.value.outputParams.includes(p.id) && !form.value.inputParams.includes(p.id))
     } catch (error) {
       console.error('Failed to load method:', error)
     }
@@ -51,15 +116,6 @@ const loadModelRequirements = async () => {
     modelRequirements.value = res || []
   } catch (error) {
     console.error('Failed to load model requirements:', error)
-  }
-}
-
-const loadProperties = async () => {
-  try {
-    const res = await propertyApi.list(modelId)
-    properties.value = res.content || []
-  } catch (error) {
-    console.error('Failed to load properties:', error)
   }
 }
 
@@ -83,14 +139,6 @@ const getRequirementName = (id: string) => {
 
 const availableRequirements = computed(() => {
   return modelRequirements.value.filter(r => !form.value.parentRequirementIds.includes(r.id))
-})
-
-const availableInputProps = computed(() => {
-  return properties.value.filter(p => !form.value.inputParams.includes(p.id) && !form.value.outputParams.includes(p.id))
-})
-
-const availableOutputProps = computed(() => {
-  return properties.value.filter(p => !form.value.outputParams.includes(p.id) && !form.value.inputParams.includes(p.id))
 })
 
 const addInputParam = (id: string) => {
@@ -120,12 +168,12 @@ const removeOutputParam = (id: string) => {
 }
 
 const getPropertyName = (id: string) => {
-  const prop = properties.value.find(p => p.id === id)
+  const prop = allProperties.value.find(p => p.id === id)
   return prop?.name || id
 }
 
 const getPropertyType = (id: string) => {
-  const prop = properties.value.find(p => p.id === id)
+  const prop = allProperties.value.find(p => p.id === id)
   const map: Record<string, string> = {
     STRING: '字符串',
     INTEGER: '整数',
@@ -141,6 +189,17 @@ const getPropertyType = (id: string) => {
   return map[prop?.dataType || ''] || prop?.dataType || ''
 }
 
+const resetForm = () => {
+  form.value = {
+    name: '',
+    code: '',
+    parentRequirementIds: modelRequirements.value.map(r => r.id),
+    description: '',
+    inputParams: [] as string[],
+    outputParams: [] as string[]
+  }
+}
+
 const handleSubmit = async (stay = false) => {
   try {
     const data = {
@@ -154,12 +213,17 @@ const handleSubmit = async (stay = false) => {
     
     if (isEdit.value && route.params.methodId) {
       await methodApi.update(modelId, route.params.methodId as string, data)
+      if (!stay) {
+        router.push(`/models/${modelId}/methods`)
+      }
     } else {
       await methodApi.create(modelId, data)
-    }
-    
-    if (!stay) {
-      router.push(`/models/${modelId}/methods`)
+      if (stay) {
+        // 保存并继续：重置表单，打开新的新建界面
+        resetForm()
+      } else {
+        router.push(`/models/${modelId}/methods`)
+      }
     }
   } catch (error) {
     console.error('Failed to save method:', error)
@@ -234,7 +298,7 @@ const handleBack = () => {
         </div>
         
         <div class="form-group full-width">
-          <label>子需求描述 <span class="required">*</span></label>
+          <label>子需求描述</label>
           <RichTextEditor v-model="form.description" placeholder="请输入子需求描述" />
         </div>
       </div>
@@ -242,13 +306,27 @@ const handleBack = () => {
       <div class="form-section">
         <h3>入参配置</h3>
         
-        <div v-if="availableInputProps.length > 0" class="param-selector">
-          <select @change="addInputParam(($event.target as HTMLSelectElement).value)" class="param-select">
-            <option value="">选择属性作为入参</option>
-            <option v-for="prop in availableInputProps" :key="prop.id" :value="prop.id">
-              {{ prop.name }} ({{ getPropertyType(prop.id) }})
-            </option>
-          </select>
+        <div v-if="allProperties.length > 0" class="param-selector">
+          <el-select
+            v-model="selectedInputProp"
+            filterable
+            remote
+            :remote-method="onInputSearch"
+            :loading="inputSearchLoading"
+            placeholder="输入属性名称搜索并选择作为入参"
+            style="width: 100%"
+            @change="handleInputParamSelect"
+          >
+            <el-option
+              v-for="prop in inputProps"
+              :key="prop.id"
+              :label="`${prop.name} (${getPropertyType(prop.id)})`"
+              :value="prop.id"
+            />
+            <template #empty>
+              <div style="padding: 10px; color: #999;">暂无匹配的属性</div>
+            </template>
+          </el-select>
         </div>
         
         <div v-if="form.inputParams.length > 0" class="selected-params">
@@ -270,13 +348,27 @@ const handleBack = () => {
       <div class="form-section">
         <h3>出参配置</h3>
         
-        <div v-if="availableOutputProps.length > 0" class="param-selector">
-          <select @change="addOutputParam(($event.target as HTMLSelectElement).value)" class="param-select">
-            <option value="">选择属性作为出参</option>
-            <option v-for="prop in availableOutputProps" :key="prop.id" :value="prop.id">
-              {{ prop.name }} ({{ getPropertyType(prop.id) }})
-            </option>
-          </select>
+        <div v-if="allProperties.length > 0" class="param-selector">
+          <el-select
+            v-model="selectedOutputProp"
+            filterable
+            remote
+            :remote-method="onOutputSearch"
+            :loading="outputSearchLoading"
+            placeholder="输入属性名称搜索并选择作为出参"
+            style="width: 100%"
+            @change="handleOutputParamSelect"
+          >
+            <el-option
+              v-for="prop in outputProps"
+              :key="prop.id"
+              :label="`${prop.name} (${getPropertyType(prop.id)})`"
+              :value="prop.id"
+            />
+            <template #empty>
+              <div style="padding: 10px; color: #999;">暂无匹配的属性</div>
+            </template>
+          </el-select>
         </div>
         
         <div v-if="form.outputParams.length > 0" class="selected-params">

@@ -23,8 +23,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.EntityManager;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.LinkedHashSet;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -37,6 +40,7 @@ public class ModelService {
     private final RequirementRepository requirementRepository;
     private final PropertyRepository propertyRepository;
     private final MethodRepository methodRepository;
+    private final EntityManager entityManager;
 
     @Transactional
     public ModelDTO create(ModelCreateRequest request) {
@@ -104,10 +108,20 @@ public class ModelService {
 
         model = modelRepository.save(model);
 
+        // 刷新并清除持久化上下文，确保删除操作立即生效
+        entityManager.flush();
+        entityManager.clear();
+
+        // 始终先删除旧的关联，防止重复
         modelRequirementRepository.deleteByModelId(id);
 
+        // 再次刷新，确保删除操作完成
+        entityManager.flush();
+
+        // 插入新的关联，去重处理
         if (request.getRequirementIds() != null && !request.getRequirementIds().isEmpty()) {
-            for (String requirementId : request.getRequirementIds()) {
+            Set<String> uniqueRequirementIds = new LinkedHashSet<>(request.getRequirementIds());
+            for (String requirementId : uniqueRequirementIds) {
                 Requirement requirement = requirementRepository.findById(requirementId)
                         .orElseThrow(() -> new RuntimeException("需求不存在: " + requirementId));
                 if (!"MAIN".equals(requirement.getRequirementType())) {

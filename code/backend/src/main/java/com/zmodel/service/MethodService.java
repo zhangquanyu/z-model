@@ -15,6 +15,7 @@ import com.zmodel.repository.MethodRepository;
 import com.zmodel.repository.ModelRepository;
 import com.zmodel.repository.PropertyRepository;
 import com.zmodel.repository.RequirementRepository;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -38,6 +39,7 @@ public class MethodService {
     private final ModelRepository modelRepository;
     private final RequirementRepository requirementRepository;
     private final PropertyRepository propertyRepository;
+    private final EntityManager entityManager;
 
     @Transactional
     public MethodDTO create(String modelId, MethodCreateRequest request) {
@@ -45,11 +47,14 @@ public class MethodService {
             throw new RuntimeException("模型不存在: " + modelId);
         }
 
-        for (String parentId : request.getParentRequirementIds()) {
-            Requirement parent = requirementRepository.findById(parentId)
-                    .orElseThrow(() -> new RuntimeException("主需求不存在: " + parentId));
-            if (!"MAIN".equals(parent.getRequirementType())) {
-                throw new RuntimeException("只能关联主需求");
+        // 验证关联的主需求是否有效（可选）
+        if (request.getParentRequirementIds() != null) {
+            for (String parentId : request.getParentRequirementIds()) {
+                Requirement parent = requirementRepository.findById(parentId)
+                        .orElseThrow(() -> new RuntimeException("主需求不存在: " + parentId));
+                if (!"MAIN".equals(parent.getRequirementType())) {
+                    throw new RuntimeException("只能关联主需求");
+                }
             }
         }
 
@@ -70,28 +75,30 @@ public class MethodService {
 
         method = methodRepository.save(method);
 
-        for (String parentId : request.getParentRequirementIds()) {
-            Requirement parent = requirementRepository.findById(parentId).orElse(null);
-            if (parent != null) {
-                String subRequirementName = "[" + request.getName() + "] 方法描述";
-                Requirement subRequirement = Requirement.builder()
-                        .id(UUID.randomUUID().toString())
-                        .name(subRequirementName)
-                        .code(generateSubCode(parent.getCode()))
-                        .description(request.getDescription())
-                        .status(parent.getStatus())
-                        .priority(parent.getPriority())
-                        .requirementType("SUB")
-                        .parentId(parentId)
-                        .build();
-                subRequirement = requirementRepository.save(subRequirement);
+        if (request.getParentRequirementIds() != null) {
+            for (String parentId : request.getParentRequirementIds()) {
+                Requirement parent = requirementRepository.findById(parentId).orElse(null);
+                if (parent != null) {
+                    String subRequirementName = "[" + request.getName() + "] 方法描述";
+                    Requirement subRequirement = Requirement.builder()
+                            .id(UUID.randomUUID().toString())
+                            .name(subRequirementName)
+                            .code(generateSubCode(parent.getCode()))
+                            .description(request.getDescription())
+                            .status(parent.getStatus())
+                            .priority(parent.getPriority())
+                            .requirementType("SUB")
+                            .parentId(parentId)
+                            .build();
+                    subRequirement = requirementRepository.save(subRequirement);
 
-                MethodRequirement mr = MethodRequirement.builder()
-                        .id(UUID.randomUUID().toString())
-                        .methodId(method.getId())
-                        .requirementId(subRequirement.getId())
-                        .build();
-                methodRequirementRepository.save(mr);
+                    MethodRequirement mr = MethodRequirement.builder()
+                            .id(UUID.randomUUID().toString())
+                            .methodId(method.getId())
+                            .requirementId(subRequirement.getId())
+                            .build();
+                    methodRequirementRepository.save(mr);
+                }
             }
         }
 
@@ -131,11 +138,14 @@ public class MethodService {
             throw new RuntimeException("方法不属于该模型");
         }
 
-        for (String parentId : request.getParentRequirementIds()) {
-            Requirement parent = requirementRepository.findById(parentId)
-                    .orElseThrow(() -> new RuntimeException("主需求不存在: " + parentId));
-            if (!"MAIN".equals(parent.getRequirementType())) {
-                throw new RuntimeException("只能关联主需求");
+        // 验证关联的主需求是否有效（可选）
+        if (request.getParentRequirementIds() != null) {
+            for (String parentId : request.getParentRequirementIds()) {
+                Requirement parent = requirementRepository.findById(parentId)
+                        .orElseThrow(() -> new RuntimeException("主需求不存在: " + parentId));
+                if (!"MAIN".equals(parent.getRequirementType())) {
+                    throw new RuntimeException("只能关联主需求");
+                }
             }
         }
 
@@ -145,28 +155,30 @@ public class MethodService {
             methodRequirementRepository.deleteById(mr.getId());
         }
 
-        for (String parentId : request.getParentRequirementIds()) {
-            Requirement parent = requirementRepository.findById(parentId).orElse(null);
-            if (parent != null) {
-                String subRequirementName = "[" + request.getName() + "] 方法描述";
-                Requirement subRequirement = Requirement.builder()
-                        .id(UUID.randomUUID().toString())
-                        .name(subRequirementName)
-                        .code(generateSubCode(parent.getCode()))
-                        .description(request.getDescription())
-                        .status(parent.getStatus())
-                        .priority(parent.getPriority())
-                        .requirementType("SUB")
-                        .parentId(parentId)
-                        .build();
-                subRequirement = requirementRepository.save(subRequirement);
+        if (request.getParentRequirementIds() != null) {
+            for (String parentId : request.getParentRequirementIds()) {
+                Requirement parent = requirementRepository.findById(parentId).orElse(null);
+                if (parent != null) {
+                    String subRequirementName = "[" + request.getName() + "] 方法描述";
+                    Requirement subRequirement = Requirement.builder()
+                            .id(UUID.randomUUID().toString())
+                            .name(subRequirementName)
+                            .code(generateSubCode(parent.getCode()))
+                            .description(request.getDescription())
+                            .status(parent.getStatus())
+                            .priority(parent.getPriority())
+                            .requirementType("SUB")
+                            .parentId(parentId)
+                            .build();
+                    subRequirement = requirementRepository.save(subRequirement);
 
-                MethodRequirement mr = MethodRequirement.builder()
-                        .id(UUID.randomUUID().toString())
-                        .methodId(method.getId())
-                        .requirementId(subRequirement.getId())
-                        .build();
-                methodRequirementRepository.save(mr);
+                    MethodRequirement mr = MethodRequirement.builder()
+                            .id(UUID.randomUUID().toString())
+                            .methodId(method.getId())
+                            .requirementId(subRequirement.getId())
+                            .build();
+                    methodRequirementRepository.save(mr);
+                }
             }
         }
 
@@ -176,7 +188,14 @@ public class MethodService {
 
         method = methodRepository.save(method);
 
+        // 刷新并清除持久化上下文，确保删除操作立即生效
+        entityManager.flush();
+        entityManager.clear();
+
         methodParamRepository.deleteByMethodId(methodId);
+
+        // 再次刷新，确保删除操作完成
+        entityManager.flush();
 
         saveMethodParams(method.getId(), "INPUT", request.getInputParams());
         saveMethodParams(method.getId(), "OUTPUT", request.getOutputParams());
@@ -303,6 +322,19 @@ public class MethodService {
             return parentCode + "-1";
         }
         List<Requirement> subRequirements = requirementRepository.findByParentId(parent.getId());
-        return parentCode + "-" + (subRequirements.size() + 1);
+        // 找出最大的子需求编号
+        int maxNum = 0;
+        for (Requirement sub : subRequirements) {
+            String subCode = sub.getCode();
+            if (subCode.startsWith(parentCode + "-")) {
+                try {
+                    int num = Integer.parseInt(subCode.substring(parentCode.length() + 1));
+                    maxNum = Math.max(maxNum, num);
+                } catch (NumberFormatException e) {
+                    // ignore
+                }
+            }
+        }
+        return parentCode + "-" + (maxNum + 1);
     }
 }

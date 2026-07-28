@@ -39,6 +39,11 @@ const dataTypeOptions = [
 onMounted(async () => {
   await loadModelRequirements()
   
+  // 新建属性时，默认选中模型关联的所有需求
+  if (!isEdit.value) {
+    form.value.parentRequirementIds = modelRequirements.value.map(r => r.id)
+  }
+  
   if (isEdit.value && route.params.propertyId) {
     try {
       const res = await propertyApi.getById(modelId, route.params.propertyId as string)
@@ -88,6 +93,18 @@ const availableRequirements = computed(() => {
   return modelRequirements.value.filter(r => !form.value.parentRequirementIds.includes(r.id))
 })
 
+const resetForm = () => {
+  form.value = {
+    name: '',
+    code: '',
+    dataType: 'STRING',
+    parentRequirementIds: modelRequirements.value.map(r => r.id),
+    required: false,
+    defaultValue: '',
+    description: ''
+  }
+}
+
 const handleSubmit = async (stay = false) => {
   try {
     const data = {
@@ -102,12 +119,17 @@ const handleSubmit = async (stay = false) => {
     
     if (isEdit.value && route.params.propertyId) {
       await propertyApi.update(modelId, route.params.propertyId as string, data)
+      if (!stay) {
+        router.push(`/models/${modelId}/properties`)
+      }
     } else {
       await propertyApi.create(modelId, data)
-    }
-    
-    if (!stay) {
-      router.push(`/models/${modelId}/properties`)
+      if (stay) {
+        // 保存并继续：重置表单，打开新的新建界面
+        resetForm()
+      } else {
+        router.push(`/models/${modelId}/properties`)
+      }
     }
   } catch (error) {
     console.error('Failed to save property:', error)
@@ -166,7 +188,7 @@ const handleBack = () => {
           </div>
           
           <div class="form-group">
-            <label>关联主需求 <span class="required">*</span></label>
+            <label>关联主需求</label>
             <select v-if="availableRequirements.length > 0" @change="addRequirement(($event.target as HTMLSelectElement).value)" class="requirement-select">
               <option value="">选择主需求</option>
               <option v-for="req in availableRequirements" :key="req.id" :value="req.id">
@@ -211,7 +233,7 @@ const handleBack = () => {
         </div>
         
         <div class="form-group full-width">
-          <label>子需求描述 <span class="required">*</span></label>
+          <label>子需求描述</label>
           <RichTextEditor v-model="form.description" placeholder="请输入子需求描述" />
         </div>
       </div>

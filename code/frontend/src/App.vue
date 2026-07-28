@@ -7,9 +7,10 @@ import {
   Setting,
   Plus,
   ArrowLeft,
-  ArrowRight
+  ArrowRight,
+  FolderOpened
 } from '@element-plus/icons-vue'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -17,19 +18,22 @@ const collapsed = ref(false)
 
 const menuItems = [
   { path: '/', name: '仪表盘', icon: Monitor },
-  { path: '/requirements', name: '需求管理', icon: Document },
-  { path: '/models', name: '模型管理', icon: Box }
+  { 
+    name: '业务处理', 
+    icon: FolderOpened,
+    children: [
+      { path: '/requirements', name: '需求管理', icon: Document },
+      { path: '/models', name: '模型管理', icon: Box }
+    ]
+  }
 ]
 
-const isActive = (path: string) => {
-  if (path === '/') {
-    return route.path === '/'
-  }
-  return route.path.startsWith(path)
-}
+const activeMenu = computed(() => {
+  return route.path
+})
 
-const handleNavigation = (path: string) => {
-  router.push(path)
+const handleMenuSelect = (index: string) => {
+  router.push(index)
 }
 </script>
 
@@ -43,18 +47,36 @@ const handleNavigation = (path: string) => {
         </div>
       </div>
       
-      <nav class="sidebar-menu">
-        <div
-          v-for="item in menuItems"
-          :key="item.path"
-          class="menu-item"
-          :class="{ active: isActive(item.path) }"
-          @click="handleNavigation(item.path)"
-        >
-          <component :is="item.icon" class="menu-icon" />
-          <span v-if="!collapsed" class="menu-text">{{ item.name }}</span>
-        </div>
-      </nav>
+      <el-menu
+        :default-active="activeMenu"
+        :collapse="collapsed"
+        background-color="#1e3a5f"
+        text-color="#ffffff"
+        active-text-color="#00d4ff"
+        class="sidebar-menu"
+        @select="handleMenuSelect"
+      >
+        <template v-for="item in menuItems" :key="item.path || item.name">
+          <el-menu-item v-if="!item.children" :index="item.path!">
+            <component :is="item.icon" class="menu-icon" />
+            <template #title>{{ item.name }}</template>
+          </el-menu-item>
+          <el-sub-menu v-else :index="item.name">
+            <template #title>
+              <component :is="item.icon" class="menu-icon" />
+              <span>{{ item.name }}</span>
+            </template>
+            <el-menu-item
+              v-for="child in item.children"
+              :key="child.path"
+              :index="child.path"
+            >
+              <component :is="child.icon" class="menu-icon" />
+              <template #title>{{ child.name }}</template>
+            </el-menu-item>
+          </el-sub-menu>
+        </template>
+      </el-menu>
       
       <div class="sidebar-footer">
         <button class="collapse-btn" @click="collapsed = !collapsed">
@@ -122,18 +144,25 @@ const handleNavigation = (path: string) => {
   height: 24px !important;
 }
 
+.sidebar .menu-icon {
+  font-size: 16px !important;
+  width: 16px !important;
+  height: 16px !important;
+  color: inherit;
+  flex-shrink: 0;
+  display: inline-flex !important;
+  
+  svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+}
+
 .sidebar .logo-icon svg {
   max-width: 24px !important;
   max-height: 24px !important;
   width: 24px !important;
   height: 24px !important;
-}
-
-.sidebar .menu-icon svg {
-  max-width: 20px !important;
-  max-height: 20px !important;
-  width: 20px !important;
-  height: 20px !important;
 }
 
 * {
@@ -205,45 +234,63 @@ body {
 
 .sidebar-menu {
   flex: 1;
-  padding: 20px 0;
+  border-right: none;
 }
 
-.menu-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 20px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.menu-item:hover {
-  background-color: var(--sidebar-hover);
-}
-
-.menu-item.active {
-  background-color: rgba(0, 212, 255, 0.2);
-  border-left: 3px solid var(--secondary-color);
-}
-
-.menu-icon {
-  font-size: 16px !important;
-  flex-shrink: 0;
-  width: 20px !important;
-  height: 20px !important;
+/* Element Plus 菜单样式覆盖 */
+.sidebar :deep(.el-menu-item) {
+  height: 48px !important;
+  line-height: 48px !important;
   display: flex !important;
   align-items: center !important;
-  justify-content: center !important;
-  
-  & svg {
-    width: 20px !important;
-    height: 20px !important;
-  }
+  gap: 12px !important;
 }
 
-.menu-text {
-  font-size: 14px;
-  font-weight: 500;
+.sidebar :deep(.el-menu-item .menu-icon) {
+  margin-right: 0 !important;
+}
+
+.sidebar :deep(.el-sub-menu__title) {
+  height: 48px !important;
+  line-height: 48px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+.sidebar :deep(.el-sub-menu__title .menu-icon) {
+  margin-right: 0 !important;
+}
+
+.sidebar :deep(.el-sub-menu .el-menu-item) {
+  height: 44px !important;
+  line-height: 44px !important;
+  padding-left: 60px !important;
+}
+
+.sidebar :deep(.el-menu-item:hover),
+.sidebar :deep(.el-sub-menu__title:hover) {
+  background-color: rgba(0, 212, 255, 0.1) !important;
+}
+
+.sidebar :deep(.el-menu-item.is-active) {
+  background-color: rgba(0, 212, 255, 0.2) !important;
+}
+
+/* 折叠状态下弹出菜单的图标样式 */
+.el-menu--popup {
+  .menu-icon {
+    font-size: 16px !important;
+    width: 16px !important;
+    height: 16px !important;
+    flex-shrink: 0;
+    display: inline-flex !important;
+  }
+  
+  .menu-icon svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
 }
 
 .sidebar-footer {

@@ -38,11 +38,14 @@ public class PropertyService {
             throw new RuntimeException("模型不存在: " + modelId);
         }
 
-        for (String parentId : request.getParentRequirementIds()) {
-            Requirement parent = requirementRepository.findById(parentId)
-                    .orElseThrow(() -> new RuntimeException("主需求不存在: " + parentId));
-            if (!"MAIN".equals(parent.getRequirementType())) {
-                throw new RuntimeException("只能关联主需求");
+        // 验证关联的主需求是否有效（可选）
+        if (request.getParentRequirementIds() != null) {
+            for (String parentId : request.getParentRequirementIds()) {
+                Requirement parent = requirementRepository.findById(parentId)
+                        .orElseThrow(() -> new RuntimeException("主需求不存在: " + parentId));
+                if (!"MAIN".equals(parent.getRequirementType())) {
+                    throw new RuntimeException("只能关联主需求");
+                }
             }
         }
 
@@ -67,29 +70,31 @@ public class PropertyService {
         property = propertyRepository.save(property);
 
         List<Requirement> subRequirements = new ArrayList<>();
-        for (String parentId : request.getParentRequirementIds()) {
-            Requirement parent = requirementRepository.findById(parentId).orElse(null);
-            if (parent != null) {
-                String subRequirementName = "[" + request.getName() + "] 属性描述";
-                Requirement subRequirement = Requirement.builder()
-                        .id(UUID.randomUUID().toString())
-                        .name(subRequirementName)
-                        .code(generateSubCode(parent.getCode()))
-                        .description(request.getDescription())
-                        .status(parent.getStatus())
-                        .priority(parent.getPriority())
-                        .requirementType("SUB")
-                        .parentId(parentId)
-                        .build();
-                subRequirement = requirementRepository.save(subRequirement);
-                subRequirements.add(subRequirement);
+        if (request.getParentRequirementIds() != null) {
+            for (String parentId : request.getParentRequirementIds()) {
+                Requirement parent = requirementRepository.findById(parentId).orElse(null);
+                if (parent != null) {
+                    String subRequirementName = "[" + request.getName() + "] 属性描述";
+                    Requirement subRequirement = Requirement.builder()
+                            .id(UUID.randomUUID().toString())
+                            .name(subRequirementName)
+                            .code(generateSubCode(parent.getCode()))
+                            .description(request.getDescription())
+                            .status(parent.getStatus())
+                            .priority(parent.getPriority())
+                            .requirementType("SUB")
+                            .parentId(parentId)
+                            .build();
+                    subRequirement = requirementRepository.save(subRequirement);
+                    subRequirements.add(subRequirement);
 
-                PropertyRequirement pr = PropertyRequirement.builder()
-                        .id(UUID.randomUUID().toString())
-                        .propertyId(property.getId())
-                        .requirementId(subRequirement.getId())
-                        .build();
-                propertyRequirementRepository.save(pr);
+                    PropertyRequirement pr = PropertyRequirement.builder()
+                            .id(UUID.randomUUID().toString())
+                            .propertyId(property.getId())
+                            .requirementId(subRequirement.getId())
+                            .build();
+                    propertyRequirementRepository.save(pr);
+                }
             }
         }
 
@@ -126,11 +131,14 @@ public class PropertyService {
             throw new RuntimeException("属性不属于该模型");
         }
 
-        for (String parentId : request.getParentRequirementIds()) {
-            Requirement parent = requirementRepository.findById(parentId)
-                    .orElseThrow(() -> new RuntimeException("主需求不存在: " + parentId));
-            if (!"MAIN".equals(parent.getRequirementType())) {
-                throw new RuntimeException("只能关联主需求");
+        // 验证关联的主需求是否有效（可选）
+        if (request.getParentRequirementIds() != null) {
+            for (String parentId : request.getParentRequirementIds()) {
+                Requirement parent = requirementRepository.findById(parentId)
+                        .orElseThrow(() -> new RuntimeException("主需求不存在: " + parentId));
+                if (!"MAIN".equals(parent.getRequirementType())) {
+                    throw new RuntimeException("只能关联主需求");
+                }
             }
         }
 
@@ -140,28 +148,30 @@ public class PropertyService {
             propertyRequirementRepository.deleteById(pr.getId());
         }
 
-        for (String parentId : request.getParentRequirementIds()) {
-            Requirement parent = requirementRepository.findById(parentId).orElse(null);
-            if (parent != null) {
-                String subRequirementName = "[" + request.getName() + "] 属性描述";
-                Requirement subRequirement = Requirement.builder()
-                        .id(UUID.randomUUID().toString())
-                        .name(subRequirementName)
-                        .code(generateSubCode(parent.getCode()))
-                        .description(request.getDescription())
-                        .status(parent.getStatus())
-                        .priority(parent.getPriority())
-                        .requirementType("SUB")
-                        .parentId(parentId)
-                        .build();
-                subRequirement = requirementRepository.save(subRequirement);
+        if (request.getParentRequirementIds() != null) {
+            for (String parentId : request.getParentRequirementIds()) {
+                Requirement parent = requirementRepository.findById(parentId).orElse(null);
+                if (parent != null) {
+                    String subRequirementName = "[" + request.getName() + "] 属性描述";
+                    Requirement subRequirement = Requirement.builder()
+                            .id(UUID.randomUUID().toString())
+                            .name(subRequirementName)
+                            .code(generateSubCode(parent.getCode()))
+                            .description(request.getDescription())
+                            .status(parent.getStatus())
+                            .priority(parent.getPriority())
+                            .requirementType("SUB")
+                            .parentId(parentId)
+                            .build();
+                    subRequirement = requirementRepository.save(subRequirement);
 
-                PropertyRequirement pr = PropertyRequirement.builder()
-                        .id(UUID.randomUUID().toString())
-                        .propertyId(property.getId())
-                        .requirementId(subRequirement.getId())
-                        .build();
-                propertyRequirementRepository.save(pr);
+                    PropertyRequirement pr = PropertyRequirement.builder()
+                            .id(UUID.randomUUID().toString())
+                            .propertyId(property.getId())
+                            .requirementId(subRequirement.getId())
+                            .build();
+                    propertyRequirementRepository.save(pr);
+                }
             }
         }
 
@@ -251,6 +261,19 @@ public class PropertyService {
             return parentCode + "-1";
         }
         List<Requirement> subRequirements = requirementRepository.findByParentId(parent.getId());
-        return parentCode + "-" + (subRequirements.size() + 1);
+        // 找出最大的子需求编号
+        int maxNum = 0;
+        for (Requirement sub : subRequirements) {
+            String subCode = sub.getCode();
+            if (subCode.startsWith(parentCode + "-")) {
+                try {
+                    int num = Integer.parseInt(subCode.substring(parentCode.length() + 1));
+                    maxNum = Math.max(maxNum, num);
+                } catch (NumberFormatException e) {
+                    // ignore
+                }
+            }
+        }
+        return parentCode + "-" + (maxNum + 1);
     }
 }

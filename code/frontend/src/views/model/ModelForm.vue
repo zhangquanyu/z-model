@@ -68,6 +68,15 @@ const availableRequirements = computed(() => {
   return allRequirements.value.filter(r => !form.value.requirementIds.includes(r.id))
 })
 
+const resetForm = () => {
+  form.value = {
+    name: '',
+    code: '',
+    description: '',
+    requirementIds: [] as string[]
+  }
+}
+
 const handleSubmit = async (stay = false) => {
   try {
     const data = {
@@ -77,12 +86,17 @@ const handleSubmit = async (stay = false) => {
     
     if (isEdit.value && route.params.id) {
       await modelApi.update(route.params.id as string, data)
+      if (!stay) {
+        router.push('/models')
+      }
     } else {
       await modelApi.create(data)
-    }
-    
-    if (!stay) {
-      router.push('/models')
+      if (stay) {
+        // 保存并继续：重置表单，打开新的新建界面
+        resetForm()
+      } else {
+        router.push('/models')
+      }
     }
   } catch (error) {
     console.error('Failed to save model:', error)
