@@ -87,6 +87,31 @@ const routes: RouteRecordRaw[] = [
     name: 'MethodEdit',
     component: () => import('@/views/model/MethodForm.vue')
   },
+  {
+    path: '/processes',
+    name: 'ProcessList',
+    component: () => import('@/views/process/ProcessList.vue')
+  },
+  {
+    path: '/processes/create',
+    name: 'ProcessCreate',
+    component: () => import('@/views/process/ProcessForm.vue')
+  },
+  {
+    path: '/processes/:id',
+    name: 'ProcessDetail',
+    component: () => import('@/views/process/ProcessDetail.vue')
+  },
+  {
+    path: '/processes/:id/edit',
+    name: 'ProcessEdit',
+    component: () => import('@/views/process/ProcessForm.vue')
+  },
+  {
+    path: '/processes/:id/design',
+    name: 'ProcessDesign',
+    component: () => import('@/views/process/ProcessDesigner.vue')
+  },
   ]
 
 const router = createRouter({

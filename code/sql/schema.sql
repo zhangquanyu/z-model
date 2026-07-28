@@ -111,6 +111,41 @@ CREATE TABLE IF NOT EXISTS event (
     KEY idx_event_time (event_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='事件流水表';
 
+CREATE TABLE IF NOT EXISTS bpmn_process (
+    id VARCHAR(36) PRIMARY KEY COMMENT '主键ID',
+    name VARCHAR(100) NOT NULL COMMENT '流程名称',
+    code VARCHAR(50) UNIQUE COMMENT '流程编号',
+    description LONGTEXT COMMENT '流程描述(富文本HTML)',
+    bpmn_xml LONGTEXT COMMENT 'BPMN 2.0 XML定义',
+    version INT DEFAULT 1 COMMENT '当前版本号',
+    status VARCHAR(20) DEFAULT 'DRAFT' COMMENT '状态(DRAFT/ACTIVE/ARCHIVED)',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    KEY idx_bpmn_process_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='业务流程表';
+
+CREATE TABLE IF NOT EXISTS bpmn_process_version (
+    id VARCHAR(36) PRIMARY KEY COMMENT '主键ID',
+    process_id VARCHAR(36) NOT NULL COMMENT '流程ID',
+    version INT NOT NULL COMMENT '版本号',
+    bpmn_xml LONGTEXT NOT NULL COMMENT 'BPMN 2.0 XML定义',
+    change_note VARCHAR(500) COMMENT '变更说明',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    UNIQUE KEY uk_process_version (process_id, version),
+    KEY idx_process_version_process (process_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='业务流程版本表';
+
+CREATE TABLE IF NOT EXISTS process_node_model (
+    id VARCHAR(36) PRIMARY KEY COMMENT '主键ID',
+    process_id VARCHAR(36) NOT NULL COMMENT '流程ID',
+    node_id VARCHAR(100) NOT NULL COMMENT 'BPMN节点ID',
+    model_id VARCHAR(36) NOT NULL COMMENT '关联模型ID',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    UNIQUE KEY uk_process_node_model (process_id, node_id, model_id),
+    KEY idx_process_node_model_process (process_id),
+    KEY idx_process_node_model_model (model_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='流程节点模型绑定表';
+
 INSERT INTO requirement (id, name, code, description, status, priority, requirement_type, parent_id) VALUES 
 ('1', '用户管理需求', 'REQ-001', '<p>实现用户的注册、登录、认证等功能</p>', 'APPROVED', 'HIGH', 'MAIN', NULL),
 ('2', '订单管理需求', 'REQ-002', '<p>实现订单的创建、支付、发货等流程</p>', 'APPROVED', 'HIGH', 'MAIN', NULL),
@@ -149,3 +184,15 @@ INSERT INTO method_param (id, method_id, property_id, param_type, sort_order) VA
 ('8', '4', '4', 'INPUT', 1),
 ('9', '4', '5', 'INPUT', 2),
 ('10', '4', '6', 'OUTPUT', 1);
+
+-- BPMN业务流程示例数据
+INSERT INTO bpmn_process (id, name, code, description, bpmn_xml, version, status) VALUES 
+('1', '用户登录流程', 'PROCESS-001', '用户登录业务流程图', '<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" targetNamespace="http://example.com/bpmn"><bpmn:process id="Process_1" isExecutable="true"><bpmn:startEvent id="StartEvent_1"><bpmn:outgoing>Flow_1</bpmn:outgoing></bpmn:startEvent><bpmn:userTask id="UserTask_1" name="验证登录信息"><bpmn:incoming>Flow_1</bpmn:incoming><bpmn:outgoing>Flow_2</bpmn:outgoing></bpmn:userTask><bpmn:exclusiveGateway id="Gateway_1" name="验证结果"><bpmn:incoming>Flow_2</bpmn:incoming><bpmn:outgoing>Flow_3</bpmn:outgoing><bpmn:outgoing>Flow_5</bpmn:outgoing></bpmn:exclusiveGateway><bpmn:endEvent id="EndEvent_1" name="登录成功"><bpmn:incoming>Flow_3</bpmn:incoming></bpmn:endEvent><bpmn:userTask id="UserTask_2" name="显示错误信息"><bpmn:incoming>Flow_5</bpmn:incoming><bpmn:outgoing>Flow_6</bpmn:outgoing></bpmn:userTask><bpmn:endEvent id="EndEvent_2" name="登录失败"><bpmn:incoming>Flow_6</bpmn:incoming></bpmn:endEvent><bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="UserTask_1" /><bpmn:sequenceFlow id="Flow_2" sourceRef="UserTask_1" targetRef="Gateway_1" /><bpmn:sequenceFlow id="Flow_3" sourceRef="Gateway_1" targetRef="EndEvent_1"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">true</bpmn:conditionExpression></bpmn:sequenceFlow><bpmn:sequenceFlow id="Flow_5" sourceRef="Gateway_1" targetRef="UserTask_2"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">false</bpmn:conditionExpression></bpmn:sequenceFlow><bpmn:sequenceFlow id="Flow_6" sourceRef="UserTask_2" targetRef="EndEvent_2" /></bpmn:process></bpmn:definitions>', 1, 'ACTIVE'),
+('2', '订单创建流程', 'PROCESS-002', '订单创建业务流程图', NULL, 1, 'DRAFT');
+
+INSERT INTO bpmn_process_version (id, process_id, version, bpmn_xml, change_note) VALUES 
+('1', '1', 1, '<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" targetNamespace="http://example.com/bpmn"><bpmn:process id="Process_1" isExecutable="true"><bpmn:startEvent id="StartEvent_1"><bpmn:outgoing>Flow_1</bpmn:outgoing></bpmn:startEvent><bpmn:userTask id="UserTask_1" name="验证登录信息"><bpmn:incoming>Flow_1</bpmn:incoming><bpmn:outgoing>Flow_2</bpmn:outgoing></bpmn:userTask><bpmn:exclusiveGateway id="Gateway_1" name="验证结果"><bpmn:incoming>Flow_2</bpmn:incoming><bpmn:outgoing>Flow_3</bpmn:outgoing><bpmn:outgoing>Flow_5</bpmn:outgoing></bpmn:exclusiveGateway><bpmn:endEvent id="EndEvent_1" name="登录成功"><bpmn:incoming>Flow_3</bpmn:incoming></bpmn:endEvent><bpmn:userTask id="UserTask_2" name="显示错误信息"><bpmn:incoming>Flow_5</bpmn:incoming><bpmn:outgoing>Flow_6</bpmn:outgoing></bpmn:userTask><bpmn:endEvent id="EndEvent_2" name="登录失败"><bpmn:incoming>Flow_6</bpmn:incoming></bpmn:endEvent><bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="UserTask_1" /><bpmn:sequenceFlow id="Flow_2" sourceRef="UserTask_1" targetRef="Gateway_1" /><bpmn:sequenceFlow id="Flow_3" sourceRef="Gateway_1" targetRef="EndEvent_1"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">true</bpmn:conditionExpression></bpmn:sequenceFlow><bpmn:sequenceFlow id="Flow_5" sourceRef="Gateway_1" targetRef="UserTask_2"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">false</bpmn:conditionExpression></bpmn:sequenceFlow><bpmn:sequenceFlow id="Flow_6" sourceRef="UserTask_2" targetRef="EndEvent_2" /></bpmn:process></bpmn:definitions>', '初始版本');
+
+INSERT INTO process_node_model (id, process_id, node_id, model_id) VALUES 
+('1', '1', 'UserTask_1', '1'),
+('2', '1', 'UserTask_2', '1');

@@ -18,20 +18,28 @@ export interface Property {
   updatedAt?: string
 }
 
+export interface PageResult<T> {
+  content: T[]
+  totalElements: number
+  totalPages: number
+  size: number
+  number: number
+}
+
 export const propertyApi = {
   list(modelId: string, params?: any) {
-    return request.get(`/models/${modelId}/properties`, { params })
+    return request.get(`/models/${modelId}/properties`, { params }) as unknown as Promise<PageResult<Property>>
   },
   getById(modelId: string, propertyId: string) {
-    return request.get(`/models/${modelId}/properties/${propertyId}`)
+    return request.get(`/models/${modelId}/properties/${propertyId}`) as unknown as Promise<Property>
   },
   create(modelId: string, data: Property) {
-    return request.post(`/models/${modelId}/properties`, data)
+    return request.post(`/models/${modelId}/properties`, data) as unknown as Promise<Property>
   },
   update(modelId: string, propertyId: string, data: Property) {
-    return request.put(`/models/${modelId}/properties/${propertyId}`, data)
+    return request.put(`/models/${modelId}/properties/${propertyId}`, data) as unknown as Promise<Property>
   },
   delete(modelId: string, propertyId: string) {
-    return request.delete(`/models/${modelId}/properties/${propertyId}`)
+    return request.delete(`/models/${modelId}/properties/${propertyId}`) as unknown as Promise<void>
   }
 }

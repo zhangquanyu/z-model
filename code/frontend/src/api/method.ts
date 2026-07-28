@@ -17,20 +17,28 @@ export interface Method {
   updatedAt?: string
 }
 
+export interface PageResult<T> {
+  content: T[]
+  totalElements: number
+  totalPages: number
+  size: number
+  number: number
+}
+
 export const methodApi = {
   list(modelId: string, params?: any) {
-    return request.get(`/models/${modelId}/methods`, { params })
+    return request.get(`/models/${modelId}/methods`, { params }) as unknown as Promise<PageResult<Method>>
   },
   getById(modelId: string, methodId: string) {
-    return request.get(`/models/${modelId}/methods/${methodId}`)
+    return request.get(`/models/${modelId}/methods/${methodId}`) as unknown as Promise<Method>
   },
   create(modelId: string, data: Method) {
-    return request.post(`/models/${modelId}/methods`, data)
+    return request.post(`/models/${modelId}/methods`, data) as unknown as Promise<Method>
   },
   update(modelId: string, methodId: string, data: Method) {
-    return request.put(`/models/${modelId}/methods/${methodId}`, data)
+    return request.put(`/models/${modelId}/methods/${methodId}`, data) as unknown as Promise<Method>
   },
   delete(modelId: string, methodId: string) {
-    return request.delete(`/models/${modelId}/methods/${methodId}`)
+    return request.delete(`/models/${modelId}/methods/${methodId}`) as unknown as Promise<void>
   }
 }

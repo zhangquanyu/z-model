@@ -8,7 +8,8 @@ import {
   Plus,
   ArrowLeft,
   ArrowRight,
-  FolderOpened
+  FolderOpened,
+  Share
 } from '@element-plus/icons-vue'
 import { ref, computed } from 'vue'
 
@@ -18,6 +19,7 @@ const collapsed = ref(false)
 
 const menuItems = [
   { path: '/', name: '仪表盘', icon: Monitor },
+  { path: '/processes', name: '业务流程', icon: Share },
   { 
     name: '业务处理', 
     icon: FolderOpened,
@@ -89,16 +91,30 @@ const handleMenuSelect = (index: string) => {
     <main class="main-content">
       <header class="header">
         <div class="header-title">
-          <h1>{{ route.name === 'Dashboard' ? '仪表盘' : 
-              route.name === 'RequirementList' ? '需求管理' :
-              route.name === 'ModelList' ? '模型管理' :
-              route.name === 'ModelDetail' ? '模型详情' :
-              route.name === 'PropertyList' ? '属性管理' :
-              route.name === 'MethodList' ? '方法管理' :
-              route.name === 'RequirementCreate' || route.name === 'RequirementEdit' ? '需求编辑' :
-              route.name === 'ModelCreate' ? '模型创建' : '页面' }}</h1>
+          <h1>{{ 
+            route.name === 'Dashboard' ? '仪表盘' : 
+            route.name === 'ProcessList' ? '业务流程' :
+            route.name === 'ProcessDetail' ? '流程详情' :
+            route.name === 'ProcessDesign' ? '流程设计器' :
+            route.name === 'ProcessCreate' || route.name === 'ProcessEdit' ? '流程编辑' :
+            route.name === 'RequirementList' ? '需求管理' :
+            route.name === 'ModelList' ? '模型管理' :
+            route.name === 'ModelDetail' ? '模型详情' :
+            route.name === 'PropertyList' ? '属性管理' :
+            route.name === 'MethodList' ? '方法管理' :
+            route.name === 'RequirementCreate' || route.name === 'RequirementEdit' ? '需求编辑' :
+            route.name === 'ModelCreate' ? '模型创建' : '页面' 
+          }}</h1>
         </div>
         <div class="header-actions">
+          <router-link 
+            v-if="route.path === '/processes'" 
+            to="/processes/create"
+            class="create-btn"
+          >
+            <Plus class="btn-icon" />
+            <span>新建流程</span>
+          </router-link>
           <router-link 
             v-if="route.path === '/requirements'" 
             to="/requirements/create"

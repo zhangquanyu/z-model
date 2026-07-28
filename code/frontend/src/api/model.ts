@@ -17,23 +17,31 @@ export interface ModelQuery {
   size?: number
 }
 
+export interface PageResult<T> {
+  content: T[]
+  totalElements: number
+  totalPages: number
+  size: number
+  number: number
+}
+
 export const modelApi = {
   list(params: ModelQuery) {
-    return request.get('/models', { params })
+    return request.get('/models', { params }) as unknown as Promise<PageResult<Model>>
   },
   getById(id: string) {
-    return request.get(`/models/${id}`)
+    return request.get(`/models/${id}`) as unknown as Promise<Model>
   },
   getRequirements(id: string) {
-    return request.get(`/models/${id}/requirements`)
+    return request.get(`/models/${id}/requirements`) as unknown as Promise<Requirement[]>
   },
   create(data: Model & { requirementIds?: string[] }) {
-    return request.post('/models', data)
+    return request.post('/models', data) as unknown as Promise<Model>
   },
   update(id: string, data: Model & { requirementIds?: string[] }) {
-    return request.put(`/models/${id}`, data)
+    return request.put(`/models/${id}`, data) as unknown as Promise<Model>
   },
   delete(id: string) {
-    return request.delete(`/models/${id}`)
+    return request.delete(`/models/${id}`) as unknown as Promise<void>
   }
 }

@@ -1,0 +1,17 @@
+package com.zmodel.dto.request;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class NodeModelBindRequest {
+
+    private String nodeId;
+
+    private String modelId;
+}
