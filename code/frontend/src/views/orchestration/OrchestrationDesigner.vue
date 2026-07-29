@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Plus, Delete, Edit } from '@element-plus/icons-vue'
@@ -126,6 +126,13 @@ const confirmAddNode = async () => {
 
 const editingNodeId = ref<string | null>(null)
 const editNodeForm = ref({ nodeName: '', description: '', nodeType: 'SERIAL', loopCount: null as number | null })
+
+const showEditNodeDialog = computed({
+  get: () => editingNodeId.value !== null,
+  set: (val: boolean) => {
+    if (!val) editingNodeId.value = null
+  }
+})
 
 const startEditNode = (node: OrchestrationNode) => {
   editingNodeId.value = node.id!
@@ -415,7 +422,7 @@ onMounted(async () => {
       </template>
     </el-dialog>
 
-    <el-dialog v-model="editingNodeId !== null" title="编辑编排节点" width="450px">
+    <el-dialog v-model="showEditNodeDialog" title="编辑编排节点" width="450px">
       <el-form :model="editNodeForm" label-width="80px">
         <el-form-item label="节点类型">
           <el-select v-model="editNodeForm.nodeType" style="width: 100%">
