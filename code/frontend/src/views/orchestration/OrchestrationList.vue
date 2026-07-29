@@ -33,9 +33,9 @@ const handleSearch = () => {
 
 const handleCreate = () => {
   showCreateDialog.value = true
-  createForm.name = ''
-  createForm.code = ''
-  createForm.description = ''
+  createForm.value.name = ''
+  createForm.value.code = ''
+  createForm.value.description = ''
 }
 
 const handleView = (id: string) => {

@@ -193,7 +193,7 @@ public class OrchestrationService {
         Method method = methodRepository.findById(request.getMethodId())
                 .orElseThrow(() -> new RuntimeException("方法不存在: " + request.getMethodId()));
 
-        if (!method.getModelId().equals(orchestrationId) && !modelRepository.existsById(method.getModelId())) {
+        if (!modelRepository.existsById(method.getModelId())) {
             throw new RuntimeException("方法所属模型不存在");
         }
 

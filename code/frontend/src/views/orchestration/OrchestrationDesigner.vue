@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Plus, Delete, Edit } from '@element-plus/icons-vue'
-import { orchestrationApi, type Orchestration, type OrchestrationNode, type OrchestrationNodeMethod } from '@/api/orchestration'
+import { orchestrationApi, type Orchestration, type OrchestrationNode } from '@/api/orchestration'
 import { modelApi, type Model } from '@/api/model'
 import { methodApi, type Method } from '@/api/method'
 import { requirementApi, type Requirement } from '@/api/requirement'
@@ -114,7 +114,7 @@ const confirmAddNode = async () => {
       nodeType: newNodeType.value,
       nodeName: newNodeName.value,
       description: newNodeDesc.value || undefined,
-      loopCount: newNodeType.value === 'LOOP' ? newNodeLoopCount.value : undefined
+      loopCount: newNodeType.value === 'LOOP' ? (newNodeLoopCount.value ?? undefined) : undefined
     })
     ElMessage.success('添加节点成功')
     showAddNodeDialog.value = false
@@ -246,10 +246,6 @@ const handleRemoveMethod = async (nodeId: string, methodId: string) => {
   }
 }
 
-const currentNode = computed(() => {
-  return orchestration.value?.nodes?.find(n => n.id === editingNodeId.value) || null
-})
-
 onMounted(async () => {
   await Promise.all([loadOrchestration(), loadModels(), loadMainRequirements()])
 })
@@ -311,7 +307,7 @@ onMounted(async () => {
             :key="m.id"
             class="method-option"
             :class="{ selected: selectedMethodId === m.id }"
-            @click="selectedMethodId = m.id"
+            @click="m.id && (selectedMethodId = m.id)"
           >
             <div class="method-name">{{ m.name }}</div>
             <div class="method-meta">
