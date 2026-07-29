@@ -30,6 +30,9 @@ export const propertyApi = {
   list(modelId: string, params?: any) {
     return request.get(`/models/${modelId}/properties`, { params }) as unknown as Promise<PageResult<Property>>
   },
+  listByRequirement(modelId: string, requirementId: string) {
+    return request.get(`/models/${modelId}/properties/by-requirement`, { params: { requirementId } }) as unknown as Promise<Property[]>
+  },
   getById(modelId: string, propertyId: string) {
     return request.get(`/models/${modelId}/properties/${propertyId}`) as unknown as Promise<Property>
   },

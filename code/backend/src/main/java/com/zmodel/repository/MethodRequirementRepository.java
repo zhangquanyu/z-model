@@ -13,6 +13,8 @@ public interface MethodRequirementRepository extends JpaRepository<MethodRequire
 
     List<MethodRequirement> findByRequirementId(String requirementId);
 
+    List<MethodRequirement> findByRequirementIdIn(List<String> requirementIds);
+
     void deleteByMethodId(String methodId);
 
     boolean existsByMethodIdAndRequirementId(String methodId, String requirementId);

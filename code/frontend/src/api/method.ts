@@ -29,6 +29,9 @@ export const methodApi = {
   list(modelId: string, params?: any) {
     return request.get(`/models/${modelId}/methods`, { params }) as unknown as Promise<PageResult<Method>>
   },
+  listByRequirement(modelId: string, requirementId: string) {
+    return request.get(`/models/${modelId}/methods/by-requirement`, { params: { requirementId } }) as unknown as Promise<Method[]>
+  },
   getById(modelId: string, methodId: string) {
     return request.get(`/models/${modelId}/methods/${methodId}`) as unknown as Promise<Method>
   },

@@ -13,6 +13,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/models/{modelId}/methods")
 @RequiredArgsConstructor
@@ -28,6 +30,14 @@ public class MethodController {
             @RequestParam(defaultValue = "") String name) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "name"));
         Page<MethodDTO> result = methodService.listByModelId(modelId, name, pageable);
+        return ApiResponse.success(result);
+    }
+
+    @GetMapping("/by-requirement")
+    public ApiResponse<List<MethodDTO>> listByRequirement(
+            @PathVariable String modelId,
+            @RequestParam String requirementId) {
+        List<MethodDTO> result = methodService.listByModelIdAndRequirement(modelId, requirementId);
         return ApiResponse.success(result);
     }
 

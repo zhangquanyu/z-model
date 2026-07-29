@@ -24,7 +24,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -127,6 +129,38 @@ public class MethodService {
         }
         Page<Method> methods = methodRepository.findByModelIdAndNameContaining(modelId, name, pageable);
         return methods.map(this::toDTO);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MethodDTO> listByModelIdAndRequirement(String modelId, String requirementId) {
+        if (!modelRepository.existsById(modelId)) {
+            throw new RuntimeException("模型不存在: " + modelId);
+        }
+
+        List<String> subRequirementIds = requirementRepository.findByParentId(requirementId)
+                .stream()
+                .map(Requirement::getId)
+                .collect(Collectors.toList());
+
+        if (subRequirementIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<MethodRequirement> mrs = methodRequirementRepository.findByRequirementIdIn(subRequirementIds);
+        List<String> methodIds = mrs.stream()
+                .map(MethodRequirement::getMethodId)
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (methodIds.isEmpty()) {
+            return List.of();
+        }
+
+        return methodRepository.findAllById(methodIds)
+                .stream()
+                .filter(m -> m.getModelId().equals(modelId))
+                .map(this::toDTO)
+                .collect(Collectors.toList());
     }
 
     @Transactional
@@ -249,16 +283,24 @@ public class MethodService {
         List<String> requirementNames = new ArrayList<>();
         List<String> parentRequirementIds = new ArrayList<>();
         List<String> parentRequirementNames = new ArrayList<>();
+        List<String> parentRequirementCodes = new ArrayList<>();
+        List<String> parentRequirementStatuses = new ArrayList<>();
+        Set<String> seenParentIds = new HashSet<>();
 
         for (MethodRequirement mr : mrs) {
             Requirement subReq = requirementRepository.findById(mr.getRequirementId()).orElse(null);
             if (subReq != null) {
                 requirementIds.add(subReq.getId());
                 requirementNames.add(subReq.getName());
-                if (subReq.getParentId() != null) {
+                if (subReq.getParentId() != null && !seenParentIds.contains(subReq.getParentId())) {
+                    seenParentIds.add(subReq.getParentId());
                     parentRequirementIds.add(subReq.getParentId());
                     requirementRepository.findById(subReq.getParentId())
-                            .ifPresent(parent -> parentRequirementNames.add(parent.getName()));
+                            .ifPresent(parent -> {
+                                parentRequirementNames.add(parent.getName());
+                                parentRequirementCodes.add(parent.getCode());
+                                parentRequirementStatuses.add(parent.getStatus());
+                            });
                 }
             }
         }
@@ -291,6 +333,8 @@ public class MethodService {
                 .requirementNames(requirementNames)
                 .parentRequirementIds(parentRequirementIds)
                 .parentRequirementNames(parentRequirementNames)
+                .parentRequirementCodes(parentRequirementCodes)
+                .parentRequirementStatuses(parentRequirementStatuses)
                 .name(entity.getName())
                 .code(entity.getCode())
                 .description(entity.getDescription())

@@ -3,7 +3,9 @@ package com.zmodel.controller;
 import com.zmodel.dto.request.RequirementCreateRequest;
 import com.zmodel.dto.request.RequirementUpdateRequest;
 import com.zmodel.dto.response.ApiResponse;
+import com.zmodel.dto.response.ModelDTO;
 import com.zmodel.dto.response.RequirementDTO;
+import com.zmodel.service.ModelService;
 import com.zmodel.service.RequirementService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,7 @@ import java.util.List;
 public class RequirementController {
 
     private final RequirementService requirementService;
+    private final ModelService modelService;
 
     @GetMapping
     public ApiResponse<Page<RequirementDTO>> list(
@@ -49,6 +52,12 @@ public class RequirementController {
     @GetMapping("/{id}/sub")
     public ApiResponse<List<RequirementDTO>> listSubRequirements(@PathVariable String id) {
         List<RequirementDTO> result = requirementService.listSubRequirements(id);
+        return ApiResponse.success(result);
+    }
+
+    @GetMapping("/{id}/models")
+    public ApiResponse<List<ModelDTO>> getModelsByRequirement(@PathVariable String id) {
+        List<ModelDTO> result = modelService.getModelsByRequirement(id);
         return ApiResponse.success(result);
     }
 

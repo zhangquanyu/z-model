@@ -396,14 +396,18 @@ const handleBack = () => {
   }
   
   .remove-btn {
-    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
     border: none;
     background: transparent;
     cursor: pointer;
     transition: color 0.2s ease;
     
     svg {
-      font-size: 14px;
+      width: 14px !important;
+      height: 14px !important;
       color: #666;
     }
     

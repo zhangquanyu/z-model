@@ -13,6 +13,8 @@ public interface PropertyRequirementRepository extends JpaRepository<PropertyReq
 
     List<PropertyRequirement> findByRequirementId(String requirementId);
 
+    List<PropertyRequirement> findByRequirementIdIn(List<String> requirementIds);
+
     void deleteByPropertyId(String propertyId);
 
     boolean existsByPropertyIdAndRequirementId(String propertyId, String requirementId);

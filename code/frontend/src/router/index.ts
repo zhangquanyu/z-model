@@ -112,6 +112,26 @@ const routes: RouteRecordRaw[] = [
     name: 'ProcessDesign',
     component: () => import('@/views/process/ProcessDesigner.vue')
   },
+  {
+    path: '/orchestrations',
+    name: 'OrchestrationList',
+    component: () => import('@/views/orchestration/OrchestrationList.vue')
+  },
+  {
+    path: '/orchestrations/:id',
+    name: 'OrchestrationDetail',
+    component: () => import('@/views/orchestration/OrchestrationDetail.vue')
+  },
+  {
+    path: '/orchestrations/:id/edit',
+    name: 'OrchestrationEdit',
+    component: () => import('@/views/orchestration/OrchestrationForm.vue')
+  },
+  {
+    path: '/orchestrations/:id/design',
+    name: 'OrchestrationDesign',
+    component: () => import('@/views/orchestration/OrchestrationDesigner.vue')
+  },
   ]
 
 const router = createRouter({

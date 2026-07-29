@@ -2,13 +2,12 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { requirementApi } from '@/api/requirement'
-import { Search, Edit, Delete, View, Refresh, ArrowRight, ArrowDown } from '@element-plus/icons-vue'
+import { Search, Edit, Delete, View, Refresh } from '@element-plus/icons-vue'
 import { ElTooltip } from 'element-plus'
 
 const router = useRouter()
 const requirements = ref<any[]>([])
 const searchName = ref('')
-const expandedIds = ref<Set<string>>(new Set())
 
 const statusMap: Record<string, string> = {
   DRAFT: '草稿',
@@ -26,10 +25,6 @@ const priorityMap: Record<string, string> = {
 
 const loadRequirements = async () => {
   try {
-    const params: any = {}
-    if (searchName.value) {
-      params.keyword = searchName.value
-    }
     const res = await requirementApi.listMainRequirements(searchName.value || undefined)
     requirements.value = res || []
   } catch (error) {
@@ -65,18 +60,6 @@ const handleRefresh = () => {
   loadRequirements()
 }
 
-const toggleExpand = (id: string) => {
-  if (expandedIds.value.has(id)) {
-    expandedIds.value.delete(id)
-  } else {
-    expandedIds.value.add(id)
-  }
-}
-
-const isExpanded = (id: string) => {
-  return expandedIds.value.has(id)
-}
-
 onMounted(() => {
   loadRequirements()
 })
@@ -104,10 +87,8 @@ onMounted(() => {
       <table class="data-table">
         <thead>
           <tr>
-            <th style="width: 40px"></th>
             <th>需求名称</th>
             <th>需求编号</th>
-            <th>类型</th>
             <th>状态</th>
             <th>优先级</th>
             <th>创建时间</th>
@@ -115,96 +96,36 @@ onMounted(() => {
           </tr>
         </thead>
         <tbody>
-          <template v-for="req in requirements" :key="req.id">
-            <tr class="main-row">
-              <td class="expand-cell">
-                <button 
-                  v-if="req.children && req.children.length > 0"
-                  class="expand-btn"
-                  @click="toggleExpand(req.id)"
-                >
-                  <ArrowDown v-if="isExpanded(req.id)" />
-                  <ArrowRight v-else />
+          <tr v-for="req in requirements" :key="req.id">
+            <td class="name-cell">{{ req.name }}</td>
+            <td>{{ req.code }}</td>
+            <td>
+              <span :class="'status-tag ' + req.status.toLowerCase()">
+                {{ statusMap[req.status] || req.status }}
+              </span>
+            </td>
+            <td>{{ priorityMap[req.priority] || req.priority }}</td>
+            <td>{{ req.createdAt?.slice(0, 10) }}</td>
+            <td class="actions">
+              <el-tooltip content="详情" placement="top">
+                <button class="action-btn view" @click="handleView(req.id)">
+                  <View />
                 </button>
-                <span v-else class="expand-placeholder"></span>
-              </td>
-              <td class="name-cell">
-                <span class="type-badge main">主需求</span>
-                <span>{{ req.name }}</span>
-              </td>
-              <td>{{ req.code }}</td>
-              <td>
-                <span class="type-tag main">主需求</span>
-              </td>
-              <td>
-                <span :class="'status-tag ' + req.status.toLowerCase()">
-                  {{ statusMap[req.status] || req.status }}
-                </span>
-              </td>
-              <td>{{ priorityMap[req.priority] || req.priority }}</td>
-              <td>{{ req.createdAt?.slice(0, 10) }}</td>
-              <td class="actions">
-                <el-tooltip content="详情" placement="top">
-                  <button class="action-btn view" @click="handleView(req.id)">
-                    <View />
-                  </button>
-                </el-tooltip>
-                <el-tooltip content="编辑" placement="top">
-                  <button class="action-btn edit" @click="handleEdit(req.id)">
-                    <Edit />
-                  </button>
-                </el-tooltip>
-                <el-tooltip content="删除" placement="top">
-                  <button class="action-btn delete" @click="handleDelete(req.id)">
-                    <Delete />
-                  </button>
-                </el-tooltip>
-              </td>
-            </tr>
-            
-            <tr 
-              v-for="child in req.children" 
-              :key="child.id" 
-              v-show="isExpanded(req.id)"
-              class="sub-row"
-            >
-              <td></td>
-              <td class="name-cell sub">
-                <span class="type-badge sub">子需求</span>
-                <span>{{ child.name }}</span>
-              </td>
-              <td>{{ child.code }}</td>
-              <td>
-                <span class="type-tag sub">子需求</span>
-              </td>
-              <td>
-                <span :class="'status-tag ' + child.status.toLowerCase()">
-                  {{ statusMap[child.status] || child.status }}
-                </span>
-              </td>
-              <td>{{ priorityMap[child.priority] || child.priority }}</td>
-              <td>{{ child.createdAt?.slice(0, 10) }}</td>
-              <td class="actions">
-                <el-tooltip content="查看" placement="top">
-                  <button class="action-btn view" @click="handleView(child.id)">
-                    <View />
-                  </button>
-                </el-tooltip>
-                <el-tooltip content="编辑" placement="top">
-                  <button class="action-btn edit" @click="handleEdit(child.id)">
-                    <Edit />
-                  </button>
-                </el-tooltip>
-                <el-tooltip content="删除" placement="top">
-                  <button class="action-btn delete" @click="handleDelete(child.id)">
-                    <Delete />
-                  </button>
-                </el-tooltip>
-              </td>
-            </tr>
-          </template>
+              </el-tooltip>
+              <el-tooltip content="编辑" placement="top">
+                <button class="action-btn edit" @click="handleEdit(req.id)">
+                  <Edit />
+                </button>
+              </el-tooltip>
+              <el-tooltip content="删除" placement="top">
+                <button class="action-btn delete" @click="handleDelete(req.id)">
+                  <Delete />
+                </button>
+              </el-tooltip>
+            </td>
+          </tr>
           <tr v-if="requirements.length === 0">
-            <td colspan="8" class="empty-row">暂无数据</td>
+            <td colspan="6" class="empty-row">暂无数据</td>
           </tr>
         </tbody>
       </table>
@@ -319,76 +240,8 @@ onMounted(() => {
   font-size: 14px;
 }
 
-.expand-cell {
-  padding: 16px 8px;
-}
-
-.expand-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  
-  svg {
-    font-size: 16px;
-    color: #999;
-    width: 16px;
-    height: 16px;
-  }
-  
-  &:hover svg {
-    color: #1e3a5f;
-  }
-}
-
-.expand-placeholder {
-  display: inline-block;
-  width: 24px;
-}
-
 .name-cell {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  
-  &.sub {
-    padding-left: 48px;
-    background-color: #fafbfc;
-  }
-}
-
-.type-badge {
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 600;
-  
-  &.main {
-    background-color: #e3f2fd;
-    color: #1976d2;
-  }
-  
-  &.sub {
-    background-color: #e8f5e9;
-    color: #388e3c;
-  }
-}
-
-.type-tag {
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
   font-weight: 500;
-  
-  &.main {
-    background-color: #e3f2fd;
-    color: #1976d2;
-  }
-  
-  &.sub {
-    background-color: #e8f5e9;
-    color: #388e3c;
-  }
 }
 
 .status-tag {
@@ -416,14 +269,6 @@ onMounted(() => {
     background-color: #ffebee;
     color: #f44336;
   }
-}
-
-.main-row {
-  background-color: white;
-}
-
-.sub-row {
-  background-color: #fafbfc;
 }
 
 .actions {

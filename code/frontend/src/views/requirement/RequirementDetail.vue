@@ -2,13 +2,13 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { requirementApi } from '@/api/requirement'
-import { ArrowLeft, Edit, View, Refresh } from '@element-plus/icons-vue'
+import { ArrowLeft, Edit, View, Refresh, Box } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
 
 const requirement = ref<any>(null)
-const subRequirements = ref<any[]>([])
+const relatedModels = ref<any[]>([])
 
 const statusMap: Record<string, string> = {
   DRAFT: '草稿',
@@ -35,12 +35,12 @@ const loadRequirement = async (id: string) => {
   }
 }
 
-const loadSubRequirements = async (id: string) => {
+const loadModels = async (id: string) => {
   try {
-    const res = await requirementApi.listSubRequirements(id)
-    subRequirements.value = res || []
+    const res = await requirementApi.getModelsByRequirement(id)
+    relatedModels.value = res || []
   } catch (error) {
-    console.error('Failed to load sub requirements:', error)
+    console.error('Failed to load models:', error)
   }
 }
 
@@ -52,8 +52,8 @@ const handleEdit = () => {
   router.push(`/requirements/${route.params.id}/edit`)
 }
 
-const handleViewSubRequirement = (subId: string) => {
-  router.push(`/requirements/${subId}`)
+const handleViewModel = (modelId: string) => {
+  router.push(`/models/${modelId}?requirementId=${route.params.id}`)
 }
 
 const handleViewParentRequirement = (parentId: string) => {
@@ -64,9 +64,9 @@ const initData = async () => {
   const id = route.params.id as string
   await loadRequirement(id)
   if (isMainRequirement.value) {
-    await loadSubRequirements(id)
+    await loadModels(id)
   } else {
-    subRequirements.value = []
+    relatedModels.value = []
   }
 }
 
@@ -168,34 +168,31 @@ watch(() => route.params.id, async (newId) => {
       
       <div class="info-card" v-if="isMainRequirement">
         <div class="card-header">
-          <h3>子需求列表</h3>
-          <button class="refresh-btn" @click="loadSubRequirements">
+          <h3>关联模型列表</h3>
+          <button class="refresh-btn" @click="loadModels">
             <Refresh />
           </button>
         </div>
         <div class="card-body">
-          <div v-if="subRequirements.length === 0" class="empty-state">
-            <p>暂无子需求</p>
-            <p class="empty-hint">子需求将在模型属性或方法关联此主需求时自动创建</p>
+          <div v-if="relatedModels.length === 0" class="empty-state">
+            <p>暂无关联模型</p>
+            <p class="empty-hint">可在模型管理中关联此需求</p>
           </div>
-          <div v-else class="sub-requirement-list">
+          <div v-else class="model-list">
             <div 
-              v-for="sub in subRequirements" 
-              :key="sub.id" 
-              class="sub-requirement-item"
-              @click="handleViewSubRequirement(sub.id)"
+              v-for="model in relatedModels" 
+              :key="model.id" 
+              class="model-item"
+              @click="handleViewModel(model.id)"
             >
-              <div class="sub-info">
-                <div class="sub-name">
-                  <span class="type-badge sub">子需求</span>
-                  <span>{{ sub.name }}</span>
-                </div>
-                <div class="sub-code">{{ sub.code }}</div>
+              <div class="model-icon-wrapper">
+                <Box class="model-icon" />
               </div>
-              <div class="sub-status">
-                <span :class="'status-badge ' + sub.status.toLowerCase()">
-                  {{ statusMap[sub.status] || sub.status }}
-                </span>
+              <div class="model-info">
+                <div class="model-name">{{ model.name }}</div>
+                <div class="model-code">{{ model.code }}</div>
+              </div>
+              <div class="model-action">
                 <View class="view-icon" />
               </div>
             </div>
@@ -448,16 +445,16 @@ watch(() => route.params.id, async (newId) => {
   }
 }
 
-.sub-requirement-list {
+.model-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.sub-requirement-item {
+.model-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 16px;
   padding: 16px;
   background-color: white;
   border-radius: 10px;
@@ -470,31 +467,46 @@ watch(() => route.params.id, async (newId) => {
   }
 }
 
-.sub-info {
+.model-icon-wrapper {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background-color: #e3f2fd;
+  border-radius: 8px;
 }
 
-.sub-name {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.model-icon {
+  font-size: 20px;
+  color: #1976d2;
+  
+  svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+}
+
+.model-info {
+  flex: 1;
+}
+
+.model-name {
   font-size: 14px;
   font-weight: 500;
   color: #333;
+  margin-bottom: 4px;
 }
 
-.sub-code {
+.model-code {
   font-size: 12px;
   color: #999;
   font-family: monospace;
 }
 
-.sub-status {
+.model-action {
   display: flex;
   align-items: center;
-  gap: 12px;
 }
 
 .view-icon {

@@ -150,6 +150,17 @@ public class ModelService {
     }
 
     @Transactional(readOnly = true)
+    public List<ModelDTO> getModelsByRequirement(String requirementId) {
+        List<ModelRequirement> mrs = modelRequirementRepository.findByRequirementId(requirementId);
+        return mrs.stream()
+                .map(mr -> modelRepository.findById(mr.getModelId()))
+                .filter(java.util.Optional::isPresent)
+                .map(java.util.Optional::get)
+                .map(this::toSummaryDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public List<RequirementDTO> getModelRequirements(String modelId) {
         Model model = modelRepository.findById(modelId)
                 .orElseThrow(() -> new RuntimeException("模型不存在: " + modelId));
@@ -173,6 +184,17 @@ public class ModelService {
     private String generateCode() {
         long count = modelRepository.count();
         return String.format("MODEL-%04d", count + 1);
+    }
+
+    private ModelDTO toSummaryDTO(Model entity) {
+        return ModelDTO.builder()
+                .id(entity.getId())
+                .name(entity.getName())
+                .code(entity.getCode())
+                .description(entity.getDescription())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .build();
     }
 
     private ModelDTO toDTO(Model entity) {

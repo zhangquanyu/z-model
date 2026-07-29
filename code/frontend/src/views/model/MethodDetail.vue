@@ -2,7 +2,6 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { methodApi } from '@/api/method'
-import { requirementApi } from '@/api/requirement'
 import { ArrowLeft, Document } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -10,16 +9,11 @@ const route = useRoute()
 const modelId = route.params.id as string
 const methodId = route.params.methodId as string
 const method = ref<any>({})
-const requirements = ref<any[]>([])
 
 onMounted(async () => {
   try {
-    const [methodRes, reqRes] = await Promise.all([
-      methodApi.getById(modelId, methodId),
-      requirementApi.list({ page: 0, size: 100 })
-    ])
+    const methodRes = await methodApi.getById(modelId, methodId)
     method.value = methodRes
-    requirements.value = reqRes.content || []
   } catch (error) {
     console.error('Failed to load method:', error)
   }
@@ -35,21 +29,6 @@ const handleEdit = () => {
 
 const handleViewRequirement = (requirementId: string) => {
   router.push(`/requirements/${requirementId}`)
-}
-
-const getRequirementName = (id: string) => {
-  const req = requirements.value.find(r => r.id === id)
-  return req?.name || id
-}
-
-const getRequirementCode = (id: string) => {
-  const req = requirements.value.find(r => r.id === id)
-  return req?.code || ''
-}
-
-const getRequirementStatus = (id: string) => {
-  const req = requirements.value.find(r => r.id === id)
-  return req?.status || ''
 }
 
 const getStatusText = (status: string) => {
@@ -140,18 +119,18 @@ const getParamNames = (params: any[]) => {
         <h3>关联需求</h3>
         <div v-if="method.parentRequirementIds?.length > 0" class="requirements-list">
           <div
-            v-for="reqId in method.parentRequirementIds"
+            v-for="(reqId, index) in method.parentRequirementIds"
             :key="reqId"
             class="requirement-item"
             @click="handleViewRequirement(reqId)"
           >
             <Document class="req-icon" />
             <div class="req-info">
-              <div class="req-name">{{ getRequirementName(reqId) }}</div>
-              <div class="req-code">{{ getRequirementCode(reqId) }}</div>
+              <div class="req-name">{{ method.parentRequirementNames?.[index] || reqId }}</div>
+              <div class="req-code">{{ method.parentRequirementCodes?.[index] || '' }}</div>
             </div>
-            <span v-if="getRequirementStatus(reqId)" :class="'status-tag ' + getRequirementStatus(reqId).toLowerCase()">
-              {{ getStatusText(getRequirementStatus(reqId)) }}
+            <span v-if="method.parentRequirementStatuses?.[index]" :class="'status-tag ' + method.parentRequirementStatuses[index].toLowerCase()">
+              {{ getStatusText(method.parentRequirementStatuses[index]) }}
             </span>
           </div>
         </div>

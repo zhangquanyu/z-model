@@ -9,7 +9,8 @@ import {
   ArrowLeft,
   ArrowRight,
   FolderOpened,
-  Share
+  Share,
+  Connection
 } from '@element-plus/icons-vue'
 import { ref, computed } from 'vue'
 
@@ -25,7 +26,8 @@ const menuItems = [
     icon: FolderOpened,
     children: [
       { path: '/requirements', name: '需求管理', icon: Document },
-      { path: '/models', name: '模型管理', icon: Box }
+      { path: '/models', name: '模型管理', icon: Box },
+      { path: '/orchestrations', name: '业务编排', icon: Connection }
     ]
   }
 ]
@@ -103,7 +105,12 @@ const handleMenuSelect = (index: string) => {
             route.name === 'PropertyList' ? '属性管理' :
             route.name === 'MethodList' ? '方法管理' :
             route.name === 'RequirementCreate' || route.name === 'RequirementEdit' ? '需求编辑' :
-            route.name === 'ModelCreate' ? '模型创建' : '页面' 
+            route.name === 'ModelCreate' ? '模型创建' :
+            route.name === 'OrchestrationList' ? '业务编排' :
+            route.name === 'OrchestrationDetail' ? '编排详情' :
+            route.name === 'OrchestrationDesign' ? '编排设计器' :
+            route.name === 'OrchestrationEdit' ? '编排编辑' :
+            '页面' 
           }}</h1>
         </div>
         <div class="header-actions">

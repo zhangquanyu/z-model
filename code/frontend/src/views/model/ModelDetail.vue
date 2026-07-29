@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { modelApi } from '@/api/model'
+import { propertyApi } from '@/api/property'
+import { methodApi } from '@/api/method'
 import { ArrowLeft, Setting, Files, Document } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -10,17 +12,58 @@ const modelId = route.params.id as string
 const model = ref<any>({})
 const activeTab = ref('properties')
 
+const requirementId = computed(() => route.query.requirementId as string || '')
+const isFromRequirement = computed(() => !!requirementId.value)
+
+const filteredProperties = ref<any[]>([])
+const filteredMethods = ref<any[]>([])
+
+const loadFilteredProperties = async () => {
+  if (!requirementId.value) return
+  try {
+    const res = await propertyApi.listByRequirement(modelId, requirementId.value)
+    filteredProperties.value = res || []
+  } catch (error) {
+    console.error('Failed to load filtered properties:', error)
+  }
+}
+
+const loadFilteredMethods = async () => {
+  if (!requirementId.value) return
+  try {
+    const res = await methodApi.listByRequirement(modelId, requirementId.value)
+    filteredMethods.value = res || []
+  } catch (error) {
+    console.error('Failed to load filtered methods:', error)
+  }
+}
+
 onMounted(async () => {
   try {
     const res = await modelApi.getById(modelId)
     model.value = res
+    if (isFromRequirement.value) {
+      await loadFilteredProperties()
+      await loadFilteredMethods()
+    }
   } catch (error) {
     console.error('Failed to load model:', error)
   }
 })
 
+watch(() => route.query.requirementId, async () => {
+  if (isFromRequirement.value) {
+    await loadFilteredProperties()
+    await loadFilteredMethods()
+  }
+})
+
 const handleBack = () => {
-  router.push('/models')
+  if (isFromRequirement.value && requirementId.value) {
+    router.push(`/requirements/${requirementId.value}`)
+  } else {
+    router.push('/models')
+  }
 }
 
 const handleManageProperties = () => {
@@ -34,6 +77,14 @@ const handleManageMethods = () => {
 const handleViewRequirement = (requirementId: string) => {
   router.push(`/requirements/${requirementId}`)
 }
+
+const displayProperties = computed(() => {
+  return isFromRequirement.value ? filteredProperties.value : model.value.properties || []
+})
+
+const displayMethods = computed(() => {
+  return isFromRequirement.value ? filteredMethods.value : model.value.methods || []
+})
 
 const getTypeName = (type: string) => {
   const map: Record<string, string> = {
@@ -61,11 +112,15 @@ const getParamNames = (params: any[]) => {
     <div class="detail-header">
       <button class="back-btn" @click="handleBack">
         <ArrowLeft />
-        <span>返回</span>
+        <span>{{ isFromRequirement ? '返回需求详情' : '返回' }}</span>
       </button>
       <div class="header-info">
         <h1>{{ model.name }}</h1>
         <span class="model-code">{{ model.code }}</span>
+      </div>
+      <div v-if="isFromRequirement" class="context-badge">
+        <Document class="context-icon" />
+        <span>从需求视角查看</span>
       </div>
     </div>
     
@@ -81,17 +136,21 @@ const getParamNames = (params: any[]) => {
             <span class="info-label">模型编号</span>
             <span class="info-value">{{ model.code }}</span>
           </div>
-          <div class="info-item">
+          <div class="info-item" v-if="!isFromRequirement">
             <span class="info-label">关联需求</span>
             <span class="info-value">{{ model.requirements?.length || 0 }} 个</span>
           </div>
+          <div class="info-item" v-else>
+            <span class="info-label">当前需求</span>
+            <span class="info-value">需求详情视角</span>
+          </div>
           <div class="info-item">
             <span class="info-label">属性数量</span>
-            <span class="info-value">{{ model.properties?.length || 0 }} 个</span>
+            <span class="info-value">{{ displayProperties.length }} 个</span>
           </div>
           <div class="info-item">
             <span class="info-label">方法数量</span>
-            <span class="info-value">{{ model.methods?.length || 0 }} 个</span>
+            <span class="info-value">{{ displayMethods.length }} 个</span>
           </div>
           <div class="info-item">
             <span class="info-label">创建时间</span>
@@ -104,7 +163,7 @@ const getParamNames = (params: any[]) => {
         </div>
       </div>
       
-      <div class="requirements-section">
+      <div class="requirements-section" v-if="!isFromRequirement">
         <h3>关联需求</h3>
         <div v-if="model.requirements?.length > 0" class="requirements-list">
           <div 
@@ -136,6 +195,7 @@ const getParamNames = (params: any[]) => {
           >
             <Setting />
             <span>属性列表</span>
+            <span v-if="isFromRequirement" class="tab-count">{{ displayProperties.length }}</span>
           </button>
           <button 
             :class="['tab-btn', { active: activeTab === 'methods' }]" 
@@ -143,6 +203,7 @@ const getParamNames = (params: any[]) => {
           >
             <Files />
             <span>方法列表</span>
+            <span v-if="isFromRequirement" class="tab-count">{{ displayMethods.length }}</span>
           </button>
         </div>
         
@@ -160,15 +221,15 @@ const getParamNames = (params: any[]) => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="prop in model.properties" :key="prop.id">
+              <tr v-for="prop in displayProperties" :key="prop.id">
                 <td>{{ prop.name }}</td>
                 <td>{{ prop.code }}</td>
                 <td>{{ getTypeName(prop.dataType) }}</td>
                 <td>{{ prop.required ? '是' : '否' }}</td>
                 <td>{{ prop.defaultValue || '-' }}</td>
               </tr>
-              <tr v-if="!model.properties?.length">
-                <td colspan="5" class="empty-row">暂无属性</td>
+              <tr v-if="displayProperties.length === 0">
+                <td colspan="5" class="empty-row">{{ isFromRequirement ? '该需求下暂无关联属性' : '暂无属性' }}</td>
               </tr>
             </tbody>
           </table>
@@ -187,14 +248,14 @@ const getParamNames = (params: any[]) => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="method in model.methods" :key="method.id">
+              <tr v-for="method in displayMethods" :key="method.id">
                 <td>{{ method.name }}</td>
                 <td>{{ method.code }}</td>
                 <td>{{ getParamNames(method.inputParams) }}</td>
                 <td>{{ getParamNames(method.outputParams) }}</td>
               </tr>
-              <tr v-if="!model.methods?.length">
-                <td colspan="4" class="empty-row">暂无方法</td>
+              <tr v-if="displayMethods.length === 0">
+                <td colspan="4" class="empty-row">{{ isFromRequirement ? '该需求下暂无关联方法' : '暂无方法' }}</td>
               </tr>
             </tbody>
           </table>
@@ -246,8 +307,8 @@ const getParamNames = (params: any[]) => {
 .header-info {
   flex: 1;
   
-  h1 {
-    font-size: 24px;
+ .detail-header h1 {
+    font-size: 20px;
     font-weight: 600;
     color: #333;
     margin-bottom: 4px;
@@ -256,6 +317,29 @@ const getParamNames = (params: any[]) => {
   .model-code {
     font-size: 14px;
     color: #999;
+  }
+}
+
+.context-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: #e3f2fd;
+  color: #1976d2;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.context-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  
+  svg {
+    width: 14px !important;
+    height: 14px !important;
   }
 }
 
@@ -444,6 +528,20 @@ const getParamNames = (params: any[]) => {
     font-size: 16px;
     color: #666;
   }
+}
+
+.tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 4px;
 }
 
 .tab-content {

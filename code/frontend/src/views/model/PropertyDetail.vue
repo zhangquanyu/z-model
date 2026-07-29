@@ -2,7 +2,6 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { propertyApi } from '@/api/property'
-import { requirementApi } from '@/api/requirement'
 import { ArrowLeft, Document } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -10,35 +9,15 @@ const route = useRoute()
 const modelId = route.params.id as string
 const propertyId = route.params.propertyId as string
 const property = ref<any>({})
-const requirements = ref<any[]>([])
 
 onMounted(async () => {
   try {
-    const [propRes, reqRes] = await Promise.all([
-      propertyApi.getById(modelId, propertyId),
-      requirementApi.list({ page: 0, size: 100 })
-    ])
+    const propRes = await propertyApi.getById(modelId, propertyId)
     property.value = propRes
-    requirements.value = reqRes.content || []
   } catch (error) {
     console.error('Failed to load property:', error)
   }
 })
-
-const getRequirementName = (id: string) => {
-  const req = requirements.value.find(r => r.id === id)
-  return req?.name || id
-}
-
-const getRequirementCode = (id: string) => {
-  const req = requirements.value.find(r => r.id === id)
-  return req?.code || ''
-}
-
-const getRequirementStatus = (id: string) => {
-  const req = requirements.value.find(r => r.id === id)
-  return req?.status || ''
-}
 
 const getStatusText = (status: string) => {
   const map: Record<string, string> = {
@@ -132,18 +111,18 @@ const getTypeName = (type: string) => {
         <h3>关联需求</h3>
         <div v-if="property.parentRequirementIds?.length > 0" class="requirements-list">
           <div
-            v-for="reqId in property.parentRequirementIds"
+            v-for="(reqId, index) in property.parentRequirementIds"
             :key="reqId"
             class="requirement-item"
             @click="handleViewRequirement(reqId)"
           >
             <Document class="req-icon" />
             <div class="req-info">
-              <div class="req-name">{{ getRequirementName(reqId) }}</div>
-              <div class="req-code">{{ getRequirementCode(reqId) }}</div>
+              <div class="req-name">{{ property.parentRequirementNames?.[index] || reqId }}</div>
+              <div class="req-code">{{ property.parentRequirementCodes?.[index] || '' }}</div>
             </div>
-            <span v-if="getRequirementStatus(reqId)" :class="'status-tag ' + getRequirementStatus(reqId).toLowerCase()">
-              {{ getStatusText(getRequirementStatus(reqId)) }}
+            <span v-if="property.parentRequirementStatuses?.[index]" :class="'status-tag ' + property.parentRequirementStatuses[index].toLowerCase()">
+              {{ getStatusText(property.parentRequirementStatuses[index]) }}
             </span>
           </div>
         </div>

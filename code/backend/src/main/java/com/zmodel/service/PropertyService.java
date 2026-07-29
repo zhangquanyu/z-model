@@ -18,7 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -122,6 +124,38 @@ public class PropertyService {
         return properties.map(this::toDTO);
     }
 
+    @Transactional(readOnly = true)
+    public List<PropertyDTO> listByModelIdAndRequirement(String modelId, String requirementId) {
+        if (!modelRepository.existsById(modelId)) {
+            throw new RuntimeException("模型不存在: " + modelId);
+        }
+
+        List<String> subRequirementIds = requirementRepository.findByParentId(requirementId)
+                .stream()
+                .map(Requirement::getId)
+                .collect(Collectors.toList());
+
+        if (subRequirementIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<PropertyRequirement> prs = propertyRequirementRepository.findByRequirementIdIn(subRequirementIds);
+        List<String> propertyIds = prs.stream()
+                .map(PropertyRequirement::getPropertyId)
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (propertyIds.isEmpty()) {
+            return List.of();
+        }
+
+        return propertyRepository.findAllById(propertyIds)
+                .stream()
+                .filter(p -> p.getModelId().equals(modelId))
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public PropertyDTO update(String modelId, String propertyId, PropertyUpdateRequest request) {
         Property property = propertyRepository.findById(propertyId)
@@ -213,16 +247,24 @@ public class PropertyService {
         List<String> requirementNames = new ArrayList<>();
         List<String> parentRequirementIds = new ArrayList<>();
         List<String> parentRequirementNames = new ArrayList<>();
+        List<String> parentRequirementCodes = new ArrayList<>();
+        List<String> parentRequirementStatuses = new ArrayList<>();
+        Set<String> seenParentIds = new HashSet<>();
 
         for (PropertyRequirement pr : prs) {
             Requirement subReq = requirementRepository.findById(pr.getRequirementId()).orElse(null);
             if (subReq != null) {
                 requirementIds.add(subReq.getId());
                 requirementNames.add(subReq.getName());
-                if (subReq.getParentId() != null) {
+                if (subReq.getParentId() != null && !seenParentIds.contains(subReq.getParentId())) {
+                    seenParentIds.add(subReq.getParentId());
                     parentRequirementIds.add(subReq.getParentId());
                     requirementRepository.findById(subReq.getParentId())
-                            .ifPresent(parent -> parentRequirementNames.add(parent.getName()));
+                            .ifPresent(parent -> {
+                                parentRequirementNames.add(parent.getName());
+                                parentRequirementCodes.add(parent.getCode());
+                                parentRequirementStatuses.add(parent.getStatus());
+                            });
                 }
             }
         }
@@ -239,6 +281,8 @@ public class PropertyService {
                 .requirementNames(requirementNames)
                 .parentRequirementIds(parentRequirementIds)
                 .parentRequirementNames(parentRequirementNames)
+                .parentRequirementCodes(parentRequirementCodes)
+                .parentRequirementStatuses(parentRequirementStatuses)
                 .name(entity.getName())
                 .code(entity.getCode())
                 .dataType(entity.getDataType())

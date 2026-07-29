@@ -28,6 +28,10 @@ public class MethodDTO {
 
     private List<String> parentRequirementNames;
 
+    private List<String> parentRequirementCodes;
+
+    private List<String> parentRequirementStatuses;
+
     private String name;
 
     private String code;

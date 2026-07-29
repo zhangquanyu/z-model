@@ -1,4 +1,5 @@
 import request from './index'
+import type { Model } from './model'
 
 export interface Requirement {
   id?: string
@@ -42,6 +43,9 @@ export const requirementApi = {
   },
   listSubRequirements(parentId: string) {
     return request.get(`/requirements/${parentId}/sub`) as unknown as Promise<Requirement[]>
+  },
+  getModelsByRequirement(id: string) {
+    return request.get(`/requirements/${id}/models`) as unknown as Promise<Model[]>
   },
   create(data: Requirement) {
     return request.post('/requirements', data) as unknown as Promise<Requirement>
