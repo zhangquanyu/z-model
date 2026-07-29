@@ -125,6 +125,9 @@ export const orchestrationApi = {
   updateNodeSort(orchestrationId: string, nodeIds: string[]) {
     return request.put(`/orchestrations/${orchestrationId}/nodes/sort`, nodeIds) as unknown as Promise<void>
   },
+  saveDesign(id: string, data: any) {
+    return request.put(`/orchestrations/${id}/design`, data) as unknown as Promise<Orchestration>
+  },
   getRequirements(orchestrationId: string) {
     return request.get(`/orchestrations/${orchestrationId}/requirements`) as unknown as Promise<Requirement[]>
   }

@@ -33,6 +33,12 @@ public class ModelController {
         return ApiResponse.success(result);
     }
 
+    @GetMapping("/all")
+    public ApiResponse<List<ModelDTO>> listAll() {
+        List<ModelDTO> result = modelService.listAll();
+        return ApiResponse.success(result);
+    }
+
     @GetMapping("/{id}")
     public ApiResponse<ModelDTO> getById(@PathVariable String id) {
         ModelDTO result = modelService.getById(id);

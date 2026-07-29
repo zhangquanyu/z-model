@@ -98,6 +98,12 @@ public class ModelService {
         return page.map(this::toDTO);
     }
 
+    public List<ModelDTO> listAll() {
+        return modelRepository.findAll().stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public ModelDTO update(String id, ModelUpdateRequest request) {
         Model model = modelRepository.findById(id)

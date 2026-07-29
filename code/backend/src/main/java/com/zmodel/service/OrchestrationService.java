@@ -1,6 +1,7 @@
 package com.zmodel.service;
 
 import com.zmodel.dto.request.OrchestrationCreateRequest;
+import com.zmodel.dto.request.OrchestrationDesignSaveRequest;
 import com.zmodel.dto.request.OrchestrationNodeMethodRequest;
 import com.zmodel.dto.request.OrchestrationNodeRequest;
 import com.zmodel.dto.request.OrchestrationUpdateRequest;
@@ -333,6 +334,61 @@ public class OrchestrationService {
             });
         }
         log.info("更新节点排序: orchestrationId={}", orchestrationId);
+    }
+
+    /**
+     * 批量保存编排设计（一次性提交整个设计结构）
+     */
+    @Transactional
+    public OrchestrationDTO saveDesign(String orchestrationId, OrchestrationDesignSaveRequest request) {
+        BusinessOrchestration orchestration = orchestrationRepository.findById(orchestrationId)
+                .orElseThrow(() -> new IllegalArgumentException("编排不存在"));
+
+        if (request.getName() != null) orchestration.setName(request.getName());
+        if (request.getCode() != null) orchestration.setCode(request.getCode());
+        if (request.getDescription() != null) orchestration.setDescription(request.getDescription());
+        if (request.getStatus() != null) orchestration.setStatus(request.getStatus());
+        orchestrationRepository.save(orchestration);
+
+        // 删除旧的节点和方法绑定
+        List<OrchestrationNode> oldNodes = nodeRepository.findByOrchestrationIdOrderBySortOrder(orchestrationId);
+        for (OrchestrationNode oldNode : oldNodes) {
+            nodeMethodRepository.deleteByNodeId(oldNode.getId());
+        }
+        nodeRepository.deleteByOrchestrationId(orchestrationId);
+
+        // 创建新的节点和方法绑定
+        if (request.getNodes() != null) {
+            int orderCounter = 0;
+            for (OrchestrationDesignSaveRequest.NodeDesignItem nodeItem : request.getNodes()) {
+                OrchestrationNode node = OrchestrationNode.builder()
+                        .orchestrationId(orchestrationId)
+                        .nodeName(nodeItem.getNodeName())
+                        .description(nodeItem.getDescription())
+                        .nodeType(nodeItem.getNodeType())
+                        .sortOrder(nodeItem.getSortOrder() != null ? nodeItem.getSortOrder() : orderCounter++)
+                        .loopCount(nodeItem.getLoopCount())
+                        .build();
+                node = nodeRepository.save(node);
+
+                if (nodeItem.getMethods() != null) {
+                    int methodOrder = 0;
+                    for (OrchestrationDesignSaveRequest.MethodDesignItem methodItem : nodeItem.getMethods()) {
+                        Method method = methodRepository.findById(methodItem.getMethodId())
+                                .orElseThrow(() -> new IllegalArgumentException("方法不存在"));
+
+                        OrchestrationNodeMethod nodeMethod = OrchestrationNodeMethod.builder()
+                                .nodeId(node.getId())
+                                .methodId(method.getId())
+                                .sortOrder(methodOrder++)
+                                .build();
+                        nodeMethodRepository.save(nodeMethod);
+                    }
+                }
+            }
+        }
+
+        return toDTO(orchestration);
     }
 
     // ============ 私有方法 ============

@@ -1,6 +1,7 @@
 package com.zmodel.controller;
 
 import com.zmodel.dto.request.OrchestrationCreateRequest;
+import com.zmodel.dto.request.OrchestrationDesignSaveRequest;
 import com.zmodel.dto.request.OrchestrationNodeMethodRequest;
 import com.zmodel.dto.request.OrchestrationNodeRequest;
 import com.zmodel.dto.request.OrchestrationUpdateRequest;
@@ -48,6 +49,13 @@ public class OrchestrationController {
     public ApiResponse<OrchestrationDTO> update(@PathVariable String id, @RequestBody OrchestrationUpdateRequest request) {
         OrchestrationDTO result = orchestrationService.update(id, request);
         return ApiResponse.success("更新成功", result);
+    }
+
+    @PutMapping("/{id}/design")
+    public ApiResponse<OrchestrationDTO> saveDesign(@PathVariable String id,
+                                                    @RequestBody OrchestrationDesignSaveRequest request) {
+        OrchestrationDTO result = orchestrationService.saveDesign(id, request);
+        return ApiResponse.success("设计保存成功", result);
     }
 
     @DeleteMapping("/{id}")
