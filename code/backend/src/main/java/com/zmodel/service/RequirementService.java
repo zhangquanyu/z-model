@@ -90,11 +90,9 @@ public class RequirementService {
     }
 
     @Transactional(readOnly = true)
-    public List<RequirementDTO> listMainRequirements(String keyword) {
-        List<Requirement> mainRequirements = requirementRepository.findMainRequirements(keyword);
-        return mainRequirements.stream()
-                .map(this::toDTOWithChildren)
-                .collect(Collectors.toList());
+    public Page<RequirementDTO> listMainRequirements(String keyword, Pageable pageable) {
+        Page<Requirement> page = requirementRepository.findMainRequirements(keyword, pageable);
+        return page.map(this::toDTO);
     }
 
     @Transactional(readOnly = true)

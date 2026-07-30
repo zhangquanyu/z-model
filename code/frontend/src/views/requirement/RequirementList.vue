@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { requirementApi } from '@/api/requirement'
+import { requirementApi, type Requirement, type PageResult } from '@/api/requirement'
 import { Search, Edit, Delete, View, Refresh } from '@element-plus/icons-vue'
 import { ElTooltip } from 'element-plus'
 
 const router = useRouter()
-const requirements = ref<any[]>([])
+const requirements = ref<Requirement[]>([])
 const searchName = ref('')
+const page = ref(0)
+const size = ref(10)
+const total = ref(0)
+const loading = ref(false)
 
 const statusMap: Record<string, string> = {
   DRAFT: '草稿',
@@ -24,15 +28,35 @@ const priorityMap: Record<string, string> = {
 }
 
 const loadRequirements = async () => {
+  loading.value = true
   try {
-    const res = await requirementApi.listMainRequirements(searchName.value || undefined)
-    requirements.value = res || []
+    const res: PageResult<Requirement> = await requirementApi.listMainRequirements({
+      keyword: searchName.value || undefined,
+      page: page.value,
+      size: size.value
+    })
+    requirements.value = res.content || []
+    total.value = res.totalElements || 0
   } catch (error) {
     console.error('Failed to load requirements:', error)
+  } finally {
+    loading.value = false
   }
 }
 
 const handleSearch = () => {
+  page.value = 0
+  loadRequirements()
+}
+
+const handlePageChange = (val: number) => {
+  page.value = val - 1
+  loadRequirements()
+}
+
+const handleSizeChange = (val: number) => {
+  size.value = val
+  page.value = 0
   loadRequirements()
 }
 
@@ -57,6 +81,7 @@ const handleDelete = async (id: string) => {
 
 const handleRefresh = () => {
   searchName.value = ''
+  page.value = 0
   loadRequirements()
 }
 
@@ -84,7 +109,7 @@ onMounted(() => {
     </div>
     
     <div class="table-container">
-      <table class="data-table">
+      <table class="data-table" v-loading="loading">
         <thead>
           <tr>
             <th>需求名称</th>
@@ -108,27 +133,39 @@ onMounted(() => {
             <td>{{ req.createdAt?.slice(0, 10) }}</td>
             <td class="actions">
               <el-tooltip content="详情" placement="top">
-                <button class="action-btn view" @click="handleView(req.id)">
+                <button class="action-btn view" @click="handleView(req.id!)">
                   <View />
                 </button>
               </el-tooltip>
               <el-tooltip content="编辑" placement="top">
-                <button class="action-btn edit" @click="handleEdit(req.id)">
+                <button class="action-btn edit" @click="handleEdit(req.id!)">
                   <Edit />
                 </button>
               </el-tooltip>
               <el-tooltip content="删除" placement="top">
-                <button class="action-btn delete" @click="handleDelete(req.id)">
+                <button class="action-btn delete" @click="handleDelete(req.id!)">
                   <Delete />
                 </button>
               </el-tooltip>
             </td>
           </tr>
-          <tr v-if="requirements.length === 0">
+          <tr v-if="requirements.length === 0 && !loading">
             <td colspan="6" class="empty-row">暂无数据</td>
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <div class="pagination">
+      <el-pagination
+        :current-page="page + 1"
+        :page-size="size"
+        :page-sizes="[10, 20, 50, 100]"
+        :total="total"
+        layout="total, sizes, prev, pager, next, jumper"
+        @current-change="handlePageChange"
+        @size-change="handleSizeChange"
+      />
     </div>
   </div>
 </template>
@@ -335,5 +372,12 @@ onMounted(() => {
   text-align: center;
   color: #999;
   padding: 40px;
+}
+
+.pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+  padding-top: 16px;
 }
 </style>

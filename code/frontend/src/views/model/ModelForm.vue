@@ -39,8 +39,8 @@ onMounted(async () => {
 
 const loadRequirements = async () => {
   try {
-    const res = await requirementApi.listMainRequirements()
-    allRequirements.value = res || []
+    const res = await requirementApi.listMainRequirements({ size: 1000 })
+    allRequirements.value = res.content || []
   } catch (error) {
     console.error('Failed to load requirements:', error)
   }

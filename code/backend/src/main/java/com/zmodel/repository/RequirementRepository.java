@@ -28,6 +28,10 @@ public interface RequirementRepository extends JpaRepository<Requirement, String
            "(:keyword IS NULL OR :keyword = '' OR r.name LIKE %:keyword% OR r.description LIKE %:keyword%)")
     List<Requirement> findMainRequirements(@Param("keyword") String keyword);
 
+    @Query("SELECT r FROM Requirement r WHERE r.requirementType = 'MAIN' AND " +
+           "(:keyword IS NULL OR :keyword = '' OR r.name LIKE %:keyword% OR r.description LIKE %:keyword%)")
+    Page<Requirement> findMainRequirements(@Param("keyword") String keyword, Pageable pageable);
+
     boolean existsByCode(String code);
 
     Requirement findByCode(String code);

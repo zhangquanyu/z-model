@@ -357,11 +357,15 @@ public class OrchestrationService {
         }
         nodeRepository.deleteByOrchestrationId(orchestrationId);
 
+        // 收集所有需要关联的需求ID，用于创建 OrchestrationRequirement
+        List<String> requirementIdsToLink = new ArrayList<>();
+
         // 创建新的节点和方法绑定
         if (request.getNodes() != null) {
             int orderCounter = 0;
             for (OrchestrationDesignSaveRequest.NodeDesignItem nodeItem : request.getNodes()) {
                 OrchestrationNode node = OrchestrationNode.builder()
+                        .id(UUID.randomUUID().toString())
                         .orchestrationId(orchestrationId)
                         .nodeName(nodeItem.getNodeName())
                         .description(nodeItem.getDescription())
@@ -377,14 +381,87 @@ public class OrchestrationService {
                         Method method = methodRepository.findById(methodItem.getMethodId())
                                 .orElseThrow(() -> new IllegalArgumentException("方法不存在"));
 
+                        String actualRequirementId = null;
+
+                        if (methodItem.getSubRequirementId() != null && !methodItem.getSubRequirementId().isEmpty()) {
+                            // 使用已存在的子需求ID
+                            actualRequirementId = methodItem.getSubRequirementId();
+                        } else if (methodItem.getParentRequirementId() != null && !methodItem.getParentRequirementId().isEmpty()
+                                && methodItem.getSubRequirementName() != null && !methodItem.getSubRequirementName().isEmpty()) {
+                            // 创建新的子需求
+                            Requirement parentRequirement = requirementRepository.findById(methodItem.getParentRequirementId())
+                                    .orElseThrow(() -> new IllegalArgumentException("父需求不存在: " + methodItem.getParentRequirementId()));
+
+                            String subCode = generateSubRequirementCode(parentRequirement.getCode());
+
+                            Requirement subRequirement = Requirement.builder()
+                                    .id(UUID.randomUUID().toString())
+                                    .name(methodItem.getSubRequirementName())
+                                    .code(subCode)
+                                    .description(methodItem.getSubRequirementDescription())
+                                    .status(parentRequirement.getStatus() != null ? parentRequirement.getStatus() : "DRAFT")
+                                    .priority(parentRequirement.getPriority() != null ? parentRequirement.getPriority() : "MEDIUM")
+                                    .requirementType("SUB")
+                                    .parentId(methodItem.getParentRequirementId())
+                                    .build();
+                            subRequirement = requirementRepository.save(subRequirement);
+                            actualRequirementId = subRequirement.getId();
+
+                            // 绑定方法到子需求
+                            MethodRequirement mr = MethodRequirement.builder()
+                                    .id(UUID.randomUUID().toString())
+                                    .methodId(method.getId())
+                                    .requirementId(subRequirement.getId())
+                                    .build();
+                            methodRequirementRepository.save(mr);
+
+                            if (!requirementIdsToLink.contains(subRequirement.getId())) {
+                                requirementIdsToLink.add(subRequirement.getId());
+                            }
+                            if (!requirementIdsToLink.contains(methodItem.getParentRequirementId())) {
+                                requirementIdsToLink.add(methodItem.getParentRequirementId());
+                            }
+                        } else if (methodItem.getRequirementId() != null && !methodItem.getRequirementId().isEmpty()) {
+                            // 使用已存在的需求ID
+                            actualRequirementId = methodItem.getRequirementId();
+
+                            // 绑定方法到需求（去重）
+                            if (!methodRequirementRepository.existsByMethodIdAndRequirementId(method.getId(), actualRequirementId)) {
+                                MethodRequirement mr = MethodRequirement.builder()
+                                        .id(UUID.randomUUID().toString())
+                                        .methodId(method.getId())
+                                        .requirementId(actualRequirementId)
+                                        .build();
+                                methodRequirementRepository.save(mr);
+                            }
+
+                            if (!requirementIdsToLink.contains(actualRequirementId)) {
+                                requirementIdsToLink.add(actualRequirementId);
+                            }
+                        }
+
                         OrchestrationNodeMethod nodeMethod = OrchestrationNodeMethod.builder()
+                                .id(UUID.randomUUID().toString())
                                 .nodeId(node.getId())
                                 .methodId(method.getId())
+                                .requirementId(actualRequirementId)
                                 .sortOrder(methodOrder++)
                                 .build();
                         nodeMethodRepository.save(nodeMethod);
                     }
                 }
+            }
+        }
+
+        // 创建编排-需求关联
+        for (String reqId : requirementIdsToLink) {
+            if (!orchestrationRequirementRepository.existsByOrchestrationIdAndRequirementId(orchestrationId, reqId)) {
+                OrchestrationRequirement orReq = OrchestrationRequirement.builder()
+                        .id(UUID.randomUUID().toString())
+                        .orchestrationId(orchestrationId)
+                        .requirementId(reqId)
+                        .build();
+                orchestrationRequirementRepository.save(orReq);
             }
         }
 

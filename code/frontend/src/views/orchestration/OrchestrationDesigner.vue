@@ -108,17 +108,34 @@ const loadModels = async () => {
 
 const loadMainRequirements = async () => {
   try {
-    mainRequirements.value = await requirementApi.listMainRequirements('')
+    const res = await requirementApi.listMainRequirements({ keyword: '', size: 1000 })
+    mainRequirements.value = res.content || []
   } catch (e) {
     console.error('加载主需求列表失败', e)
   }
+}
+
+const normalizeMethod = (m: ModelMethod): ModelMethod => {
+  if (!m.requirementId && m.requirementIds && m.requirementIds.length > 0) {
+    m.requirementId = m.requirementIds[0]
+  }
+  if (!m.requirementName && m.requirementNames && m.requirementNames.length > 0) {
+    m.requirementName = m.requirementNames[0]
+  }
+  if (!m.parentRequirementId && m.parentRequirementIds && m.parentRequirementIds.length > 0) {
+    m.parentRequirementId = m.parentRequirementIds[0]
+  }
+  if (!m.parentRequirementName && m.parentRequirementNames && m.parentRequirementNames.length > 0) {
+    m.parentRequirementName = m.parentRequirementNames[0]
+  }
+  return m
 }
 
 const loadModelMethods = async (modelId: string) => {
   if (modelMethodsCache[modelId]) return modelMethodsCache[modelId]
   try {
     const res = await modelApi.getById(modelId)
-    modelMethodsCache[modelId] = res.methods || []
+    modelMethodsCache[modelId] = (res.methods || []).map(normalizeMethod)
     return modelMethodsCache[modelId]
   } catch (e) {
     console.error('加载模型方法失败', e)
@@ -182,27 +199,33 @@ const moveNodeDown = (nodeId: string) => {
   sortNodesByOrder()
 }
 
+// ============ 左侧方法库状态 ============
+const libraryModelId = ref<string>('')
+const librarySelectedMethodId = ref<string>('')
+
+const onLibraryModelChange = async () => {
+  if (!libraryModelId.value) {
+    librarySelectedMethodId.value = ''
+    return
+  }
+  librarySelectedMethodId.value = ''
+  if (!modelMethodsCache[libraryModelId.value]) {
+    await loadModelMethods(libraryModelId.value)
+  }
+}
+
 // ============ 方法操作 ============
 const showMethodDialog = ref(false)
 const methodDialogNodeId = ref<string>('')
-const methodDialogModelId = ref<string>('')
 const methodDialogMethods = ref<ModelMethod[]>([])
 const methodDialogSelectedMethodId = ref<string>('')
 
 const openMethodDialog = (nodeId: string) => {
   methodDialogNodeId.value = nodeId
-  methodDialogModelId.value = models.value[0]?.id || ''
-  methodDialogMethods.value = modelMethodsCache[methodDialogModelId.value] || []
+  const modelId = libraryModelId.value || models.value[0]?.id || ''
+  methodDialogMethods.value = [...(modelMethodsCache[modelId] || [])]
   methodDialogSelectedMethodId.value = ''
   showMethodDialog.value = true
-}
-
-const onMethodDialogModelChange = async () => {
-  if (!methodDialogModelId.value) {
-    methodDialogMethods.value = []
-    return
-  }
-  methodDialogMethods.value = await loadModelMethods(methodDialogModelId.value)
 }
 
 const confirmAddMethodToNode = async () => {
@@ -212,6 +235,12 @@ const confirmAddMethodToNode = async () => {
 
   const node = designData.nodes.find(n => n.id === methodDialogNodeId.value)
   if (!node) return
+
+  const exists = node.methods.some(m => m.methodId === method.id)
+  if (exists) {
+    ElMessage.warning('该方法已存在于当前节点中')
+    return
+  }
 
   node.methods.push({
     methodId: method.id!,
@@ -233,6 +262,176 @@ const removeMethodFromNode = (nodeId: string, methodId: string) => {
   if (!node) return
   const idx = node.methods.findIndex(m => m.methodId === methodId)
   if (idx !== -1) node.methods.splice(idx, 1)
+}
+
+// ============ 拖拽操作 ============
+const draggingMethod = ref<ModelMethod | null>(null)
+const draggingModelId = ref<string>('')
+const dragOverNodeId = ref<string | null>(null)
+const dragEnterCount = ref<Record<string, number>>({})
+
+// 节点内方法拖拽排序
+const draggingNodeMethod = ref<{ nodeId: string; methodId: string } | null>(null)
+const dragOverMethodIndex = ref<{ nodeId: string; index: number } | null>(null)
+const methodDragEnterCount = ref<Record<string, number>>({})
+
+const onDragStart = (method: ModelMethod, modelId: string) => {
+  draggingMethod.value = { ...method }
+  draggingModelId.value = modelId
+  dragEnterCount.value = {}
+}
+
+const onDragEnd = () => {
+  draggingMethod.value = null
+  draggingModelId.value = ''
+  dragOverNodeId.value = null
+  dragEnterCount.value = {}
+}
+
+const onDragOverNode = (e: DragEvent, nodeId: string) => {
+  e.preventDefault()
+  if (draggingMethod.value) {
+    dragOverNodeId.value = nodeId
+    dragEnterCount.value[nodeId] = (dragEnterCount.value[nodeId] || 0) + 1
+  }
+}
+
+const onDragLeaveNode = (nodeId: string) => {
+  dragEnterCount.value[nodeId] = (dragEnterCount.value[nodeId] || 0) - 1
+  if (dragEnterCount.value[nodeId] <= 0) {
+    delete dragEnterCount.value[nodeId]
+    if (dragOverNodeId.value === nodeId) {
+      dragOverNodeId.value = null
+    }
+  }
+}
+
+const onCanvasDragOver = (e: DragEvent) => {
+  e.preventDefault()
+}
+
+const onCanvasDrop = (e: DragEvent) => {
+  e.preventDefault()
+}
+
+// 节点内方法排序拖拽
+const onMethodDragStart = (nodeId: string, methodId: string) => {
+  draggingNodeMethod.value = { nodeId, methodId }
+  methodDragEnterCount.value = {}
+}
+
+const onMethodDragEnd = () => {
+  draggingNodeMethod.value = null
+  dragOverMethodIndex.value = null
+  methodDragEnterCount.value = {}
+}
+
+const onMethodDragOver = (e: DragEvent, nodeId: string, index: number) => {
+  e.preventDefault()
+  e.stopPropagation()
+  if (!draggingNodeMethod.value) return
+
+  const key = `${nodeId}-${index}`
+  methodDragEnterCount.value[key] = (methodDragEnterCount.value[key] || 0) + 1
+  dragOverMethodIndex.value = { nodeId, index }
+}
+
+const onMethodDragLeave = (nodeId: string, index: number) => {
+  const key = `${nodeId}-${index}`
+  methodDragEnterCount.value[key] = (methodDragEnterCount.value[key] || 0) - 1
+  if (methodDragEnterCount.value[key] <= 0) {
+    delete methodDragEnterCount.value[key]
+  }
+}
+
+const onMethodDrop = (e: DragEvent, nodeId: string, targetIndex: number) => {
+  e.preventDefault()
+  e.stopPropagation()
+  if (!draggingNodeMethod.value || draggingNodeMethod.value.nodeId !== nodeId) {
+    onMethodDragEnd()
+    return
+  }
+
+  const node = designData.nodes.find(n => n.id === nodeId)
+  if (!node) {
+    onMethodDragEnd()
+    return
+  }
+
+  const sourceIndex = node.methods.findIndex(m => m.methodId === draggingNodeMethod.value!.methodId)
+  if (sourceIndex === -1) {
+    onMethodDragEnd()
+    return
+  }
+
+  const item = node.methods.splice(sourceIndex, 1)[0]
+  const adjustedIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
+  node.methods.splice(adjustedIndex, 0, item)
+
+  node.methods.forEach((m, i) => { m.sortOrder = i })
+
+  onMethodDragEnd()
+}
+
+const getModelName = (modelId?: string) => {
+  if (!modelId) return ''
+  return models.value.find((m: Model) => m.id === modelId)?.name || ''
+}
+
+const addSelectedMethodToNode = (nodeId: string) => {
+  if (!librarySelectedMethodId.value) return
+  const node = designData.nodes.find(n => n.id === nodeId)
+  if (!node) return
+
+  const method = modelMethodsCache[libraryModelId.value]?.find(m => m.id === librarySelectedMethodId.value)
+  if (!method) return
+
+  const exists = node.methods.some(m => m.methodId === method.id)
+  if (exists) {
+    ElMessage.warning('该方法已存在于当前节点中')
+    return
+  }
+
+  node.methods.push({
+    methodId: method.id!,
+    methodName: method.name,
+    modelId: method.modelId || libraryModelId.value,
+    modelName: method.modelName || getModelName(libraryModelId.value),
+    requirementId: method.requirementId,
+    requirementName: method.requirementName,
+    sortOrder: node.methods.length
+  })
+  librarySelectedMethodId.value = ''
+  ElMessage.success('方法已添加')
+}
+
+const onDropNode = (e: DragEvent, nodeId: string) => {
+  e.preventDefault()
+  const method = draggingMethod.value
+  if (!method) return
+
+  const node = designData.nodes.find(n => n.id === nodeId)
+  if (!node) return
+
+  const exists = node.methods.some(m => m.methodId === method.id)
+  if (exists) {
+    ElMessage.warning('该方法已存在于当前节点中')
+    onDragEnd()
+    return
+  }
+
+  node.methods.push({
+    methodId: method.id!,
+    methodName: method.name,
+    modelId: method.modelId || draggingModelId.value,
+    modelName: method.modelName || getModelName(draggingModelId.value),
+    requirementId: method.requirementId,
+    requirementName: method.requirementName,
+    sortOrder: node.methods.length
+  })
+
+  onDragEnd()
+  ElMessage.success('方法已拖入节点')
 }
 
 // ============ 子需求创建弹窗 ============
@@ -282,6 +481,13 @@ const confirmCreateSubRequirement = async () => {
     const node = designData.nodes.find(n => n.id === subReqTargetNodeId.value)
     if (!node) return
 
+    const exists = node.methods.some(m => m.methodId === subReqForm.methodId)
+    if (exists) {
+      ElMessage.warning('该方法已存在于当前节点中')
+      showSubReqDialog.value = false
+      return
+    }
+
     node.methods.push({
       id: subReqTempMethodId.value,
       methodId: subReqForm.methodId,
@@ -318,12 +524,29 @@ const handleSave = async () => {
         nodeType: n.nodeType,
         sortOrder: n.sortOrder,
         loopCount: n.loopCount,
-        methods: n.methods.map(m => ({
-          id: m.id?.startsWith('temp-') ? null : m.id,
-          methodId: m.methodId,
-          subRequirementId: m.subRequirementId || null,
-          sortOrder: m.sortOrder
-        }))
+        methods: n.methods.map(m => {
+          const isTemp = m.id?.startsWith('temp-')
+          const hasSubReqId = !!(m.subRequirementId && m.subRequirementId !== '')
+          const isNewSubReq = !isTemp ? false : (!hasSubReqId && !!m.requirementName)
+
+          const methodPayload: any = {
+            id: isTemp ? null : m.id,
+            methodId: m.methodId,
+            sortOrder: m.sortOrder
+          }
+
+          if (isNewSubReq) {
+            methodPayload.parentRequirementId = m.requirementId || null
+            methodPayload.subRequirementName = m.requirementName || null
+            methodPayload.subRequirementDescription = null
+          } else if (hasSubReqId) {
+            methodPayload.subRequirementId = m.subRequirementId
+          } else if (m.requirementId) {
+            methodPayload.requirementId = m.requirementId
+          }
+
+          return methodPayload
+        })
       }))
     }
     await orchestrationApi.saveDesign(orchestrationId, payload)
@@ -345,9 +568,10 @@ onMounted(async () => {
   if (models.value.length > 0) {
     for (const m of models.value) {
       if (m.methods && m.methods.length > 0) {
-        modelMethodsCache[m.id!] = m.methods as ModelMethod[]
+        modelMethodsCache[m.id!] = (m.methods as ModelMethod[]).map(normalizeMethod)
       }
     }
+    libraryModelId.value = models.value[0].id || ''
   }
 })
 </script>
@@ -414,12 +638,13 @@ onMounted(async () => {
             方法库
           </div>
           <div class="method-library">
+            <div class="library-tip">💡 可拖拽方法到画布节点</div>
             <el-select
-              v-model="methodDialogModelId"
+              v-model="libraryModelId"
               placeholder="选择模型"
               filterable
               style="width: 100%; margin-bottom: 12px"
-              @change="onMethodDialogModelChange"
+              @change="onLibraryModelChange"
             >
               <el-option
                 v-for="model in models"
@@ -428,22 +653,28 @@ onMounted(async () => {
                 :value="model.id"
               />
             </el-select>
-            <div class="library-methods" v-if="modelMethodsCache[methodDialogModelId]?.length">
+            <div class="library-methods" v-if="modelMethodsCache[libraryModelId]?.length">
               <div
-                v-for="m in modelMethodsCache[methodDialogModelId]"
+                v-for="m in modelMethodsCache[libraryModelId]"
                 :key="m.id"
                 class="library-method-item"
-                :class="{ selected: methodDialogSelectedMethodId === m.id }"
-                @click="m.id && (methodDialogSelectedMethodId = m.id)"
+                :class="{ selected: librarySelectedMethodId === m.id, dragging: draggingMethod?.id === m.id }"
+                :draggable="!!m.id"
+                @click="m.id && (librarySelectedMethodId = m.id)"
+                @dragstart="m.id && onDragStart(m, libraryModelId)"
+                @dragend="onDragEnd"
               >
-                <div class="lm-name">{{ m.name }}</div>
-                <div class="lm-meta">
-                  <span v-if="m.code" class="lm-code">{{ m.code }}</span>
-                  <span v-if="m.requirementName" class="lm-req">{{ m.requirementName }}</span>
+                <div class="lm-drag-handle" v-if="m.id" title="拖拽到节点">⋮⋮</div>
+                <div class="lm-content">
+                  <div class="lm-name">{{ m.name }}</div>
+                  <div class="lm-meta">
+                    <span v-if="m.code" class="lm-code">{{ m.code }}</span>
+                    <span v-if="m.requirementName" class="lm-req">{{ m.requirementName }}</span>
+                  </div>
                 </div>
               </div>
             </div>
-            <div v-else-if="methodDialogModelId" class="library-empty">
+            <div v-else-if="libraryModelId" class="library-empty">
               该模型暂无方法
             </div>
             <div v-else class="library-empty">
@@ -454,7 +685,7 @@ onMounted(async () => {
       </div>
 
       <!-- 中间画布 -->
-      <div class="center-canvas">
+      <div class="center-canvas" @dragover="onCanvasDragOver" @drop="onCanvasDrop">
         <div v-if="designData.nodes.length === 0" class="empty-canvas">
           <el-empty description="点击左侧「节点类型」开始搭建业务流程">
             <el-button type="primary" @click="addNode('SERIAL')">创建第一个节点</el-button>
@@ -474,9 +705,12 @@ onMounted(async () => {
             <!-- 节点卡片 -->
             <div
               class="canvas-node"
-              :class="{ selected: selectedNodeId === node.id }"
+              :class="{ selected: selectedNodeId === node.id, 'drag-over': dragOverNodeId === node.id }"
               :style="{ borderColor: nodeTypeMap[node.nodeType]?.color }"
               @click="selectNode(node.id!)"
+              @dragover="(e) => onDragOverNode(e, node.id!)"
+              @dragleave="onDragLeaveNode(node.id!)"
+              @drop="(e) => onDropNode(e, node.id!)"
             >
               <div class="node-header" :style="{ borderBottomColor: nodeTypeMap[node.nodeType]?.color }">
                 <div class="node-header-left">
@@ -510,12 +744,20 @@ onMounted(async () => {
                   <template v-if="node.nodeType === 'PARALLEL' && node.methods.length > 0">
                     <div class="parallel-branch">
                       <div
-                        v-for="m in node.methods"
+                        v-for="(m, idx) in node.methods"
                         :key="m.id || m.methodId"
                         class="method-branch-item"
+                        :class="{ 'method-drag-over': dragOverMethodIndex?.nodeId === node.id && dragOverMethodIndex?.index === idx }"
+                        :draggable="node.methods.length > 1"
+                        @dragstart="onMethodDragStart(node.id!, m.methodId)"
+                        @dragend="onMethodDragEnd"
+                        @dragover="(e) => onMethodDragOver(e, node.id!, idx)"
+                        @dragleave="onMethodDragLeave(node.id!, idx)"
+                        @drop="(e) => onMethodDrop(e, node.id!, idx)"
                       >
                         <div class="branch-line"></div>
                         <div class="branch-method">
+                          <span class="bm-drag-handle" v-if="node.methods.length > 1">⋮⋮</span>
                           <span class="bm-name">{{ m.methodName }}</span>
                           <el-tag v-if="m.modelName" size="small" type="info">{{ m.modelName }}</el-tag>
                         </div>
@@ -527,7 +769,15 @@ onMounted(async () => {
                       v-for="(m, idx) in node.methods"
                       :key="m.id || m.methodId"
                       class="method-row"
+                      :class="{ 'method-drag-over': dragOverMethodIndex?.nodeId === node.id && dragOverMethodIndex?.index === idx, 'dragging-row': draggingNodeMethod?.nodeId === node.id && draggingNodeMethod?.methodId === m.methodId }"
+                      :draggable="node.methods.length > 1"
+                      @dragstart="onMethodDragStart(node.id!, m.methodId)"
+                      @dragend="onMethodDragEnd"
+                      @dragover="(e) => onMethodDragOver(e, node.id!, idx)"
+                      @dragleave="onMethodDragLeave(node.id!, idx)"
+                      @drop="(e) => onMethodDrop(e, node.id!, idx)"
                     >
+                      <span class="mr-drag-handle" v-if="node.methods.length > 1">⋮⋮</span>
                       <span v-if="node.nodeType === 'SERIAL' && node.methods.length > 1" class="method-order">
                         {{ idx + 1 }}.
                       </span>
@@ -556,14 +806,19 @@ onMounted(async () => {
                   >
                     添加方法
                   </el-button>
-                  <el-button
-                    v-if="methodDialogSelectedMethodId && node.id === methodDialogNodeId"
-                    type="success"
-                    link
-                    @click.stop="confirmAddMethodToNode"
+                  <el-tooltip
+                    v-if="librarySelectedMethodId && node.methods.findIndex(m => m.methodId === librarySelectedMethodId) === -1"
+                    content="点击确认添加选中方法，或直接拖拽方法到节点"
+                    placement="top"
                   >
-                    确认添加「{{ modelMethodsCache[methodDialogModelId]?.find(m => m.id === methodDialogSelectedMethodId)?.name }}」
-                  </el-button>
+                    <el-button
+                      type="success"
+                      link
+                      @click.stop="addSelectedMethodToNode(node.id!)"
+                    >
+                      + 添加「{{ modelMethodsCache[libraryModelId]?.find(m => m.id === librarySelectedMethodId)?.name }}」
+                    </el-button>
+                  </el-tooltip>
                 </div>
               </div>
             </div>
@@ -702,7 +957,7 @@ onMounted(async () => {
           <div class="sub-req-title">关联需求 (可选)</div>
           <div class="sub-req-options">
             <el-button type="success" plain size="small" @click="() => {
-              const m = modelMethodsCache[methodDialogModelId]?.find(x => x.id === methodDialogSelectedMethodId)
+              const m = methodDialogMethods.find(x => x.id === methodDialogSelectedMethodId)
               if (m) openSubReqDialog(methodDialogNodeId, m)
             }">
               + 创建子需求
@@ -906,6 +1161,16 @@ onMounted(async () => {
   }
 
   .method-library {
+    .library-tip {
+      font-size: 11px;
+      color: #909399;
+      background: #f4f4f5;
+      padding: 4px 8px;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
     .library-methods {
       max-height: 300px;
       overflow-y: auto;
@@ -918,8 +1183,11 @@ onMounted(async () => {
       padding: 8px 10px;
       border: 1px solid #e4e7ed;
       border-radius: 6px;
-      cursor: pointer;
+      cursor: grab;
       transition: all 0.2s;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
 
       &:hover {
         border-color: #409eff;
@@ -929,6 +1197,24 @@ onMounted(async () => {
       &.selected {
         border-color: #409eff;
         background: #ecf5ff;
+      }
+
+      &.dragging {
+        opacity: 0.5;
+        cursor: grabbing;
+      }
+
+      .lm-drag-handle {
+        color: #c0c4cc;
+        font-size: 12px;
+        cursor: grab;
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+
+      .lm-content {
+        flex: 1;
+        min-width: 0;
       }
 
       .lm-name {
@@ -1021,6 +1307,12 @@ onMounted(async () => {
       transform: scale(1.01);
     }
 
+    &.drag-over {
+      box-shadow: 0 0 0 3px rgba(103, 194, 58, 0.5);
+      border-style: dashed !important;
+      background: #f0f9eb;
+    }
+
     .node-header {
       display: flex;
       justify-content: space-between;
@@ -1090,6 +1382,38 @@ onMounted(async () => {
       background: white;
       border-radius: 6px;
       border: 1px solid #ebeef5;
+      cursor: default;
+      transition: all 0.15s;
+
+      &[draggable="true"] {
+        cursor: grab;
+
+        &:hover {
+          border-color: #c0c4cc;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+        }
+
+        &.dragging-row {
+          opacity: 0.5;
+          cursor: grabbing;
+        }
+
+        &.method-drag-over {
+          border-top: 2px solid #409eff;
+        }
+      }
+
+      .mr-drag-handle {
+        color: #c0c4cc;
+        font-size: 12px;
+        cursor: grab;
+        flex-shrink: 0;
+        transition: color 0.2s;
+
+        &:hover {
+          color: #909399;
+        }
+      }
 
       .method-order {
         color: #909399;
@@ -1122,6 +1446,20 @@ onMounted(async () => {
       position: relative;
       padding-left: 12px;
       margin-bottom: 6px;
+      cursor: default;
+
+      &[draggable="true"] {
+        cursor: grab;
+
+        &:hover .branch-method {
+          border-color: #c0c4cc;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+        }
+
+        &.method-drag-over .branch-method {
+          border-top: 2px solid #409eff;
+        }
+      }
 
       .branch-line {
         position: absolute;
@@ -1140,6 +1478,19 @@ onMounted(async () => {
         background: white;
         border-radius: 6px;
         border: 1px solid #ebeef5;
+        transition: all 0.15s;
+
+        .bm-drag-handle {
+          color: #c0c4cc;
+          font-size: 12px;
+          cursor: grab;
+          flex-shrink: 0;
+          transition: color 0.2s;
+
+          &:hover {
+            color: #909399;
+          }
+        }
 
         .bm-name {
           flex: 1;

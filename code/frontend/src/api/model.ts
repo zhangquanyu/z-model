@@ -18,8 +18,14 @@ export interface Method {
   modelName?: string
   requirementId?: string
   requirementName?: string
+  requirementIds?: string[]
+  requirementNames?: string[]
   parentRequirementId?: string
   parentRequirementName?: string
+  parentRequirementIds?: string[]
+  parentRequirementNames?: string[]
+  parentRequirementCodes?: string[]
+  parentRequirementStatuses?: string[]
   name: string
   code?: string
   description: string

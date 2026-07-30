@@ -27,7 +27,11 @@ public class OrchestrationDesignSaveRequest {
     public static class MethodDesignItem {
         private String id;
         private String methodId;
+        private String requirementId;
         private String subRequirementId;
+        private String parentRequirementId;
+        private String subRequirementName;
+        private String subRequirementDescription;
         private Integer sortOrder;
     }
 }

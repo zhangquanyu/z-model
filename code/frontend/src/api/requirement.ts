@@ -23,6 +23,12 @@ export interface RequirementQuery {
   size?: number
 }
 
+export interface MainRequirementQuery {
+  keyword?: string
+  page?: number
+  size?: number
+}
+
 export interface PageResult<T> {
   content: T[]
   totalElements: number
@@ -35,8 +41,8 @@ export const requirementApi = {
   list(params: RequirementQuery) {
     return request.get('/requirements', { params }) as unknown as Promise<PageResult<Requirement>>
   },
-  listMainRequirements(keyword?: string) {
-    return request.get('/requirements/main', { params: { keyword } }) as unknown as Promise<Requirement[]>
+  listMainRequirements(params?: MainRequirementQuery) {
+    return request.get('/requirements/main', { params }) as unknown as Promise<PageResult<Requirement>>
   },
   getById(id: string) {
     return request.get(`/requirements/${id}`) as unknown as Promise<Requirement>

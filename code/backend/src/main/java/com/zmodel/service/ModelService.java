@@ -11,11 +11,13 @@ import com.zmodel.entity.ModelRequirement;
 import com.zmodel.entity.Requirement;
 import com.zmodel.entity.Property;
 import com.zmodel.entity.Method;
+import com.zmodel.entity.MethodRequirement;
 import com.zmodel.repository.ModelRepository;
 import com.zmodel.repository.ModelRequirementRepository;
 import com.zmodel.repository.RequirementRepository;
 import com.zmodel.repository.PropertyRepository;
 import com.zmodel.repository.MethodRepository;
+import com.zmodel.repository.MethodRequirementRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -24,6 +26,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.EntityManager;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -40,6 +44,7 @@ public class ModelService {
     private final RequirementRepository requirementRepository;
     private final PropertyRepository propertyRepository;
     private final MethodRepository methodRepository;
+    private final MethodRequirementRepository methodRequirementRepository;
     private final EntityManager entityManager;
 
     @Transactional
@@ -192,6 +197,57 @@ public class ModelService {
         return String.format("MODEL-%04d", count + 1);
     }
 
+    private MethodDTO toMethodDTO(Method entity) {
+        List<MethodRequirement> mrs = methodRequirementRepository.findByMethodId(entity.getId());
+
+        List<String> requirementIds = new ArrayList<>();
+        List<String> requirementNames = new ArrayList<>();
+        List<String> parentRequirementIds = new ArrayList<>();
+        List<String> parentRequirementNames = new ArrayList<>();
+        List<String> parentRequirementCodes = new ArrayList<>();
+        List<String> parentRequirementStatuses = new ArrayList<>();
+        Set<String> seenParentIds = new HashSet<>();
+
+        for (MethodRequirement mr : mrs) {
+            Requirement subReq = requirementRepository.findById(mr.getRequirementId()).orElse(null);
+            if (subReq != null) {
+                requirementIds.add(subReq.getId());
+                requirementNames.add(subReq.getName());
+                if (subReq.getParentId() != null && !seenParentIds.contains(subReq.getParentId())) {
+                    seenParentIds.add(subReq.getParentId());
+                    parentRequirementIds.add(subReq.getParentId());
+                    requirementRepository.findById(subReq.getParentId())
+                            .ifPresent(parent -> {
+                                parentRequirementNames.add(parent.getName());
+                                parentRequirementCodes.add(parent.getCode());
+                                parentRequirementStatuses.add(parent.getStatus());
+                            });
+                }
+            }
+        }
+
+        String modelName = modelRepository.findById(entity.getModelId())
+                .map(m -> m.getName())
+                .orElse("");
+
+        return MethodDTO.builder()
+                .id(entity.getId())
+                .modelId(entity.getModelId())
+                .modelName(modelName)
+                .requirementIds(requirementIds)
+                .requirementNames(requirementNames)
+                .parentRequirementIds(parentRequirementIds)
+                .parentRequirementNames(parentRequirementNames)
+                .parentRequirementCodes(parentRequirementCodes)
+                .parentRequirementStatuses(parentRequirementStatuses)
+                .name(entity.getName())
+                .code(entity.getCode())
+                .description(entity.getDescription())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .build();
+    }
+
     private ModelDTO toSummaryDTO(Model entity) {
         return ModelDTO.builder()
                 .id(entity.getId())
@@ -238,15 +294,7 @@ public class ModelService {
 
         List<MethodDTO> methods = methodRepository.findByModelId(entity.getId())
                 .stream()
-                .map(m -> MethodDTO.builder()
-                        .id(m.getId())
-                        .modelId(m.getModelId())
-                        .name(m.getName())
-                        .code(m.getCode())
-                        .description(m.getDescription())
-                        .createdAt(m.getCreatedAt())
-                        .updatedAt(m.getUpdatedAt())
-                        .build())
+                .map(this::toMethodDTO)
                 .collect(Collectors.toList());
 
         return ModelDTO.builder()

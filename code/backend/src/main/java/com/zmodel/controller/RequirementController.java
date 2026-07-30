@@ -37,9 +37,12 @@ public class RequirementController {
     }
 
     @GetMapping("/main")
-    public ApiResponse<List<RequirementDTO>> listMainRequirements(
-            @RequestParam(defaultValue = "") String keyword) {
-        List<RequirementDTO> result = requirementService.listMainRequirements(keyword);
+    public ApiResponse<Page<RequirementDTO>> listMainRequirements(
+            @RequestParam(defaultValue = "") String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<RequirementDTO> result = requirementService.listMainRequirements(keyword, pageable);
         return ApiResponse.success(result);
     }
 
