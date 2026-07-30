@@ -53,6 +53,7 @@ const props = defineProps<{
   onNodeDragOver: (e: DragEvent, nodeId: string) => void
   onNodeDrop: (e: DragEvent, nodeId: string) => void
   onDropNode: (e: DragEvent, nodeId: string) => void
+  suggestedWidth?: number  // 父节点推荐的宽度（用于横向布局时自适应）
 }>()
 
 const showAddChildMenu = ref(false)
@@ -66,9 +67,49 @@ const addChildNode = (nodeType: string) => {
 
 const hasChildren = computed(() => props.node.children && props.node.children.length > 0)
 
-// 并行节点的子节点横向排列，其他节点纵向排列
+// 响应式判断子节点布局：
+// 1. 并行节点优先横向（宽度足够时）
+// 2. 串行/循环节点：宽度足够时横向，不够时纵向
+const CHILD_MIN_WIDTH = 280 // 每个子节点最小宽度
+const CHILD_MAX_WIDTH = 500 // 每个子节点最大宽度
+const H_GAP = 16 // 横向间距
+const PADDING = 28 // 容器内边距
+
 const childrenLayout = computed(() => {
-  return props.node.nodeType === 'PARALLEL' ? 'horizontal' : 'vertical'
+  if (!props.node.children || props.node.children.length === 0) {
+    return 'vertical'
+  }
+  const nodeWidth = props.node.width || 420
+  const childCount = props.node.children.length
+  const availableWidth = nodeWidth - PADDING * 2
+  const needWidth = childCount * CHILD_MIN_WIDTH + (childCount - 1) * H_GAP
+  
+  // 并行节点：宽度足够时横向，否则纵向
+  if (props.node.nodeType === 'PARALLEL') {
+    return availableWidth >= needWidth ? 'horizontal' : 'vertical'
+  }
+  
+  // 其他节点：只有一个子节点时也横向更美观
+  if (childCount === 1 && availableWidth >= CHILD_MIN_WIDTH) {
+    return 'horizontal'
+  }
+  
+  // 多个子节点时，宽度足够才横向
+  return availableWidth >= needWidth ? 'horizontal' : 'vertical'
+})
+
+// 计算横向布局时每个子节点的推荐宽度
+const childSuggestedWidth = computed(() => {
+  if (childrenLayout.value !== 'horizontal') {
+    return CHILD_MIN_WIDTH
+  }
+  const nodeWidth = props.node.width || 420
+  const childCount = props.node.children?.length || 1
+  const availableWidth = nodeWidth - PADDING * 2
+  const totalGap = (childCount - 1) * H_GAP
+  // 平均分配宽度，但限制在最小和最大范围内
+  const avgWidth = Math.floor((availableWidth - totalGap) / childCount)
+  return Math.max(CHILD_MIN_WIDTH, Math.min(CHILD_MAX_WIDTH, avgWidth))
 })
 
 // 处理 dragover 事件，区分方法拖拽和节点拖拽
@@ -100,6 +141,19 @@ const MIN_WIDTH = 280
 const MAX_WIDTH = 800
 
 const currentWidth = computed(() => {
+  // 如果正在调整大小，使用实时更新的宽度
+  if (isResizing.value) {
+    return props.node.width || 420
+  }
+  // 如果父节点推荐了宽度，优先使用（用于横向布局自适应）
+  if (props.suggestedWidth && props.suggestedWidth > 0) {
+    // 但如果节点有自己保存的宽度，且差异不大，优先用自己的
+    const ownWidth = props.node.width || 420
+    // 只有当自己的宽度是默认值或差异较大时才使用推荐宽度
+    if (!props.node.width || Math.abs(ownWidth - props.suggestedWidth) > 50) {
+      return props.suggestedWidth
+    }
+  }
   return props.node.width || 420
 })
 
@@ -320,6 +374,7 @@ onUnmounted(() => {
           :on-node-drop="onNodeDrop"
           :dragging-method="draggingMethod"
           :on-drop-node="onDropNode"
+          :suggested-width="childrenLayout === 'horizontal' ? childSuggestedWidth : undefined"
         />
       </div>
     </div>
@@ -653,7 +708,7 @@ onUnmounted(() => {
     gap: 10px;
     margin-top: 4px;
 
-    // 子节点横向排列（并行节点）
+    // 子节点横向排列（响应式）
     &.children-horizontal {
       flex-direction: row;
       flex-wrap: wrap;
@@ -662,6 +717,8 @@ onUnmounted(() => {
       background: linear-gradient(180deg, #f0f9eb 0%, #f5f7fa 100%);
       position: relative;
       justify-content: flex-start;
+      align-items: flex-start;
+      gap: 12px;
 
       .parallel-connector-line {
         position: absolute;
@@ -678,6 +735,7 @@ onUnmounted(() => {
   .child-node-wrapper {
     position: relative;
     padding-left: 20px;
+    flex-shrink: 0; // 防止子节点被压缩
 
     &::before {
       content: '';
