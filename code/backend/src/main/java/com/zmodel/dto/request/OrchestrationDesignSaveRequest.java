@@ -15,12 +15,15 @@ public class OrchestrationDesignSaveRequest {
     @Data
     public static class NodeDesignItem {
         private String id;
+        private String parentId;
         private String nodeName;
         private String description;
         private String nodeType;
         private Integer sortOrder;
         private Integer loopCount;
+        private Integer width;
         private List<MethodDesignItem> methods;
+        private List<NodeDesignItem> children;
     }
 
     @Data

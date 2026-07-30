@@ -15,11 +15,14 @@ import java.util.List;
 public class OrchestrationNodeDTO {
     private String id;
     private String orchestrationId;
+    private String parentId;
     private String nodeType;
     private String nodeName;
     private String description;
     private Integer sortOrder;
     private Integer loopCount;
+    private Integer width;
     private List<OrchestrationNodeMethodDTO> methods;
+    private List<OrchestrationNodeDTO> children;
     private LocalDateTime createdAt;
 }

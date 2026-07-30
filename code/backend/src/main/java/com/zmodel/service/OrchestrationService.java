@@ -15,10 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -337,7 +334,7 @@ public class OrchestrationService {
     }
 
     /**
-     * 批量保存编排设计（一次性提交整个设计结构）
+     * 批量保存编排设计（一次性提交整个设计结构，支持嵌套节点）
      */
     @Transactional
     public OrchestrationDTO saveDesign(String orchestrationId, OrchestrationDesignSaveRequest request) {
@@ -360,96 +357,12 @@ public class OrchestrationService {
         // 收集所有需要关联的需求ID，用于创建 OrchestrationRequirement
         List<String> requirementIdsToLink = new ArrayList<>();
 
-        // 创建新的节点和方法绑定
+        // 递归创建新的节点树
         if (request.getNodes() != null) {
             int orderCounter = 0;
             for (OrchestrationDesignSaveRequest.NodeDesignItem nodeItem : request.getNodes()) {
-                OrchestrationNode node = OrchestrationNode.builder()
-                        .id(UUID.randomUUID().toString())
-                        .orchestrationId(orchestrationId)
-                        .nodeName(nodeItem.getNodeName())
-                        .description(nodeItem.getDescription())
-                        .nodeType(nodeItem.getNodeType())
-                        .sortOrder(nodeItem.getSortOrder() != null ? nodeItem.getSortOrder() : orderCounter++)
-                        .loopCount(nodeItem.getLoopCount())
-                        .build();
-                node = nodeRepository.save(node);
-
-                if (nodeItem.getMethods() != null) {
-                    int methodOrder = 0;
-                    for (OrchestrationDesignSaveRequest.MethodDesignItem methodItem : nodeItem.getMethods()) {
-                        Method method = methodRepository.findById(methodItem.getMethodId())
-                                .orElseThrow(() -> new IllegalArgumentException("方法不存在"));
-
-                        String actualRequirementId = null;
-
-                        if (methodItem.getSubRequirementId() != null && !methodItem.getSubRequirementId().isEmpty()) {
-                            // 使用已存在的子需求ID
-                            actualRequirementId = methodItem.getSubRequirementId();
-                        } else if (methodItem.getParentRequirementId() != null && !methodItem.getParentRequirementId().isEmpty()
-                                && methodItem.getSubRequirementName() != null && !methodItem.getSubRequirementName().isEmpty()) {
-                            // 创建新的子需求
-                            Requirement parentRequirement = requirementRepository.findById(methodItem.getParentRequirementId())
-                                    .orElseThrow(() -> new IllegalArgumentException("父需求不存在: " + methodItem.getParentRequirementId()));
-
-                            String subCode = generateSubRequirementCode(parentRequirement.getCode());
-
-                            Requirement subRequirement = Requirement.builder()
-                                    .id(UUID.randomUUID().toString())
-                                    .name(methodItem.getSubRequirementName())
-                                    .code(subCode)
-                                    .description(methodItem.getSubRequirementDescription())
-                                    .status(parentRequirement.getStatus() != null ? parentRequirement.getStatus() : "DRAFT")
-                                    .priority(parentRequirement.getPriority() != null ? parentRequirement.getPriority() : "MEDIUM")
-                                    .requirementType("SUB")
-                                    .parentId(methodItem.getParentRequirementId())
-                                    .build();
-                            subRequirement = requirementRepository.save(subRequirement);
-                            actualRequirementId = subRequirement.getId();
-
-                            // 绑定方法到子需求
-                            MethodRequirement mr = MethodRequirement.builder()
-                                    .id(UUID.randomUUID().toString())
-                                    .methodId(method.getId())
-                                    .requirementId(subRequirement.getId())
-                                    .build();
-                            methodRequirementRepository.save(mr);
-
-                            if (!requirementIdsToLink.contains(subRequirement.getId())) {
-                                requirementIdsToLink.add(subRequirement.getId());
-                            }
-                            if (!requirementIdsToLink.contains(methodItem.getParentRequirementId())) {
-                                requirementIdsToLink.add(methodItem.getParentRequirementId());
-                            }
-                        } else if (methodItem.getRequirementId() != null && !methodItem.getRequirementId().isEmpty()) {
-                            // 使用已存在的需求ID
-                            actualRequirementId = methodItem.getRequirementId();
-
-                            // 绑定方法到需求（去重）
-                            if (!methodRequirementRepository.existsByMethodIdAndRequirementId(method.getId(), actualRequirementId)) {
-                                MethodRequirement mr = MethodRequirement.builder()
-                                        .id(UUID.randomUUID().toString())
-                                        .methodId(method.getId())
-                                        .requirementId(actualRequirementId)
-                                        .build();
-                                methodRequirementRepository.save(mr);
-                            }
-
-                            if (!requirementIdsToLink.contains(actualRequirementId)) {
-                                requirementIdsToLink.add(actualRequirementId);
-                            }
-                        }
-
-                        OrchestrationNodeMethod nodeMethod = OrchestrationNodeMethod.builder()
-                                .id(UUID.randomUUID().toString())
-                                .nodeId(node.getId())
-                                .methodId(method.getId())
-                                .requirementId(actualRequirementId)
-                                .sortOrder(methodOrder++)
-                                .build();
-                        nodeMethodRepository.save(nodeMethod);
-                    }
-                }
+                createNodeTree(orchestrationId, null, nodeItem, orderCounter, requirementIdsToLink);
+                orderCounter++;
             }
         }
 
@@ -466,6 +379,116 @@ public class OrchestrationService {
         }
 
         return toDTO(orchestration);
+    }
+
+    /**
+     * 递归创建节点树
+     */
+    private void createNodeTree(String orchestrationId, String parentId,
+                                OrchestrationDesignSaveRequest.NodeDesignItem nodeItem,
+                                int sortOrder, List<String> requirementIdsToLink) {
+        OrchestrationNode node = OrchestrationNode.builder()
+                .id(UUID.randomUUID().toString())
+                .orchestrationId(orchestrationId)
+                .parentId(parentId)
+                .nodeName(nodeItem.getNodeName())
+                .description(nodeItem.getDescription())
+                .nodeType(nodeItem.getNodeType())
+                .sortOrder(nodeItem.getSortOrder() != null ? nodeItem.getSortOrder() : sortOrder)
+                .loopCount(nodeItem.getLoopCount())
+                .width(nodeItem.getWidth() != null ? nodeItem.getWidth() : 420)
+                .build();
+        node = nodeRepository.save(node);
+
+        // 保存方法
+        if (nodeItem.getMethods() != null) {
+            int methodOrder = 0;
+            for (OrchestrationDesignSaveRequest.MethodDesignItem methodItem : nodeItem.getMethods()) {
+                saveNodeMethod(node.getId(), methodItem, requirementIdsToLink, methodOrder);
+                methodOrder++;
+            }
+        }
+
+        // 递归保存子节点
+        if (nodeItem.getChildren() != null) {
+            int childOrder = 0;
+            for (OrchestrationDesignSaveRequest.NodeDesignItem childItem : nodeItem.getChildren()) {
+                createNodeTree(orchestrationId, node.getId(), childItem, childOrder, requirementIdsToLink);
+                childOrder++;
+            }
+        }
+    }
+
+    /**
+     * 保存节点方法
+     */
+    private void saveNodeMethod(String nodeId, OrchestrationDesignSaveRequest.MethodDesignItem methodItem,
+                                List<String> requirementIdsToLink, int sortOrder) {
+        Method method = methodRepository.findById(methodItem.getMethodId())
+                .orElseThrow(() -> new IllegalArgumentException("方法不存在"));
+
+        String actualRequirementId = null;
+
+        if (methodItem.getSubRequirementId() != null && !methodItem.getSubRequirementId().isEmpty()) {
+            actualRequirementId = methodItem.getSubRequirementId();
+        } else if (methodItem.getParentRequirementId() != null && !methodItem.getParentRequirementId().isEmpty()
+                && methodItem.getSubRequirementName() != null && !methodItem.getSubRequirementName().isEmpty()) {
+            Requirement parentRequirement = requirementRepository.findById(methodItem.getParentRequirementId())
+                    .orElseThrow(() -> new IllegalArgumentException("父需求不存在: " + methodItem.getParentRequirementId()));
+
+            String subCode = generateSubRequirementCode(parentRequirement.getCode());
+
+            Requirement subRequirement = Requirement.builder()
+                    .id(UUID.randomUUID().toString())
+                    .name(methodItem.getSubRequirementName())
+                    .code(subCode)
+                    .description(methodItem.getSubRequirementDescription())
+                    .status(parentRequirement.getStatus() != null ? parentRequirement.getStatus() : "DRAFT")
+                    .priority(parentRequirement.getPriority() != null ? parentRequirement.getPriority() : "MEDIUM")
+                    .requirementType("SUB")
+                    .parentId(methodItem.getParentRequirementId())
+                    .build();
+            subRequirement = requirementRepository.save(subRequirement);
+            actualRequirementId = subRequirement.getId();
+
+            MethodRequirement mr = MethodRequirement.builder()
+                    .id(UUID.randomUUID().toString())
+                    .methodId(method.getId())
+                    .requirementId(subRequirement.getId())
+                    .build();
+            methodRequirementRepository.save(mr);
+
+            if (!requirementIdsToLink.contains(subRequirement.getId())) {
+                requirementIdsToLink.add(subRequirement.getId());
+            }
+            if (!requirementIdsToLink.contains(methodItem.getParentRequirementId())) {
+                requirementIdsToLink.add(methodItem.getParentRequirementId());
+            }
+        } else if (methodItem.getRequirementId() != null && !methodItem.getRequirementId().isEmpty()) {
+            actualRequirementId = methodItem.getRequirementId();
+
+            if (!methodRequirementRepository.existsByMethodIdAndRequirementId(method.getId(), actualRequirementId)) {
+                MethodRequirement mr = MethodRequirement.builder()
+                        .id(UUID.randomUUID().toString())
+                        .methodId(method.getId())
+                        .requirementId(actualRequirementId)
+                        .build();
+                methodRequirementRepository.save(mr);
+            }
+
+            if (!requirementIdsToLink.contains(actualRequirementId)) {
+                requirementIdsToLink.add(actualRequirementId);
+            }
+        }
+
+        OrchestrationNodeMethod nodeMethod = OrchestrationNodeMethod.builder()
+                .id(UUID.randomUUID().toString())
+                .nodeId(nodeId)
+                .methodId(method.getId())
+                .requirementId(actualRequirementId)
+                .sortOrder(sortOrder)
+                .build();
+        nodeMethodRepository.save(nodeMethod);
     }
 
     // ============ 私有方法 ============
@@ -502,9 +525,34 @@ public class OrchestrationService {
     }
 
     private OrchestrationDTO toDTO(BusinessOrchestration entity) {
-        List<OrchestrationNode> nodes = nodeRepository.findByOrchestrationIdOrderBySortOrder(entity.getId());
-        List<OrchestrationNodeDTO> nodeDTOs = nodes.stream()
-                .map(this::toNodeDTO)
+        // 获取所有节点
+        List<OrchestrationNode> allNodes = nodeRepository.findByOrchestrationIdOrderBySortOrder(entity.getId());
+        
+        // 构建节点映射
+        Map<String, OrchestrationNode> nodeMap = new LinkedHashMap<>();
+        for (OrchestrationNode node : allNodes) {
+            nodeMap.put(node.getId(), node);
+        }
+
+        // 收集所有子节点ID
+        Set<String> childIds = new HashSet<>();
+        for (OrchestrationNode node : allNodes) {
+            if (node.getParentId() != null) {
+                childIds.add(node.getParentId());
+            }
+        }
+
+        // 获取顶级节点（parentId为null的节点）
+        List<OrchestrationNode> rootNodes = new ArrayList<>();
+        for (OrchestrationNode node : allNodes) {
+            if (node.getParentId() == null) {
+                rootNodes.add(node);
+            }
+        }
+
+        // 递归构建节点树
+        List<OrchestrationNodeDTO> nodeDTOs = rootNodes.stream()
+                .map(node -> toNodeDTOWithChildren(node, nodeMap))
                 .collect(Collectors.toList());
 
         List<OrchestrationRequirement> orReqs = orchestrationRequirementRepository.findByOrchestrationId(entity.getId());
@@ -547,6 +595,44 @@ public class OrchestrationService {
                 .build();
     }
 
+    /**
+     * 递归构建节点DTO树
+     */
+    private OrchestrationNodeDTO toNodeDTOWithChildren(OrchestrationNode node, Map<String, OrchestrationNode> nodeMap) {
+        List<OrchestrationNodeMethod> methods = nodeMethodRepository.findByNodeIdOrderBySortOrder(node.getId());
+        List<OrchestrationNodeMethodDTO> methodDTOs = methods.stream()
+                .map(this::toNodeMethodDTO)
+                .collect(Collectors.toList());
+
+        // 查找子节点
+        List<OrchestrationNode> children = new ArrayList<>();
+        for (OrchestrationNode n : nodeMap.values()) {
+            if (node.getId().equals(n.getParentId())) {
+                children.add(n);
+            }
+        }
+
+        // 递归处理子节点
+        List<OrchestrationNodeDTO> childDTOs = children.stream()
+                .map(child -> toNodeDTOWithChildren(child, nodeMap))
+                .collect(Collectors.toList());
+
+        return OrchestrationNodeDTO.builder()
+                .id(node.getId())
+                .orchestrationId(node.getOrchestrationId())
+                .parentId(node.getParentId())
+                .nodeType(node.getNodeType())
+                .nodeName(node.getNodeName())
+                .description(node.getDescription())
+                .sortOrder(node.getSortOrder())
+                .loopCount(node.getLoopCount())
+                .width(node.getWidth() != null ? node.getWidth() : 420)
+                .methods(methodDTOs)
+                .children(childDTOs)
+                .createdAt(node.getCreatedAt())
+                .build();
+    }
+
     private OrchestrationNodeDTO toNodeDTO(OrchestrationNode node) {
         List<OrchestrationNodeMethod> methods = nodeMethodRepository.findByNodeIdOrderBySortOrder(node.getId());
         List<OrchestrationNodeMethodDTO> methodDTOs = methods.stream()
@@ -556,11 +642,13 @@ public class OrchestrationService {
         return OrchestrationNodeDTO.builder()
                 .id(node.getId())
                 .orchestrationId(node.getOrchestrationId())
+                .parentId(node.getParentId())
                 .nodeType(node.getNodeType())
                 .nodeName(node.getNodeName())
                 .description(node.getDescription())
                 .sortOrder(node.getSortOrder())
                 .loopCount(node.getLoopCount())
+                .width(node.getWidth() != null ? node.getWidth() : 420)
                 .methods(methodDTOs)
                 .createdAt(node.getCreatedAt())
                 .build();

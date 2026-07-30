@@ -1,11 +1,19 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft, Plus, Delete, Edit, Operation, CircleCheck } from '@element-plus/icons-vue'
+import { ArrowLeft, Plus, Delete, Edit, Operation, CircleCheck, ZoomIn, ZoomOut, Aim, Rank, Grid } from '@element-plus/icons-vue'
 import { orchestrationApi } from '@/api/orchestration'
 import { modelApi, type Model, type Method as ModelMethod } from '@/api/model'
 import { requirementApi, type Requirement } from '@/api/requirement'
+import NodeCard from './NodeCard.vue'
+
+// ============ 画布控制状态 ============
+const canvasScale = ref(1)
+const canvasLayout = ref<'vertical' | 'horizontal'>('vertical')
+const draggingNodeId = ref<string | null>(null)
+const dragOverNodeIdForSort = ref<string | null>(null)
+const dragOverPosition = ref<'before' | 'after'>('before')
 
 const route = useRoute()
 const router = useRouter()
@@ -28,12 +36,15 @@ interface DesignMethod {
 
 interface DesignNode {
   id?: string
+  parentId?: string
   nodeName: string
   description?: string
   nodeType: string
   sortOrder: number
   loopCount?: number
+  width?: number
   methods: DesignMethod[]
+  children?: DesignNode[]
 }
 
 const designData = reactive({
@@ -46,10 +57,32 @@ const designData = reactive({
 })
 
 const selectedNodeId = ref<string | null>(null)
+const selectedNode = ref<DesignNode | null>(null)
 
-const selectedNode = computed(() => {
-  if (!selectedNodeId.value) return null
-  return designData.nodes.find(n => n.id === selectedNodeId.value) || null
+// 递归查找节点
+const findNodeById = (nodes: DesignNode[], nodeId: string): DesignNode | null => {
+  for (const node of nodes) {
+    if (node.id === nodeId) return node
+    if (node.children && node.children.length > 0) {
+      const found = findNodeById(node.children, nodeId)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+// 更新选中节点
+const updateSelectedNode = () => {
+  if (!selectedNodeId.value) {
+    selectedNode.value = null
+    return
+  }
+  selectedNode.value = findNodeById(designData.nodes, selectedNodeId.value)
+}
+
+// 监听 selectedNodeId 变化
+watch(selectedNodeId, () => {
+  updateSelectedNode()
 })
 
 const nodeTypeMap: Record<string, { label: string; color: string; icon: string; desc: string }> = {
@@ -63,6 +96,30 @@ const models = ref<Model[]>([])
 const mainRequirements = ref<Requirement[]>([])
 const modelMethodsCache = reactive<Record<string, ModelMethod[]>>({})
 
+// 递归映射节点数据
+const mapNodeData = (n: any, idx: number): DesignNode => ({
+  id: n.id,
+  parentId: n.parentId,
+  nodeName: n.nodeName || `节点-${idx + 1}`,
+  description: n.description,
+  nodeType: n.nodeType,
+  sortOrder: n.sortOrder ?? idx,
+  loopCount: n.loopCount,
+  width: n.width || 420,
+  methods: (n.methods || []).map((m: any) => ({
+    id: m.id,
+    methodId: m.methodId,
+    methodName: m.methodName,
+    modelId: m.modelId,
+    modelName: m.modelName,
+    requirementId: m.requirementId,
+    requirementName: m.requirementName,
+    subRequirementId: m.subRequirementId,
+    sortOrder: m.sortOrder
+  })),
+  children: (n.children || []).map((child: any, childIdx: number) => mapNodeData(child, childIdx))
+})
+
 const loadOrchestration = async () => {
   loading.value = true
   try {
@@ -72,24 +129,7 @@ const loadOrchestration = async () => {
     designData.code = data.code || ''
     designData.description = data.description || ''
     designData.status = data.status || 'DRAFT'
-    designData.nodes = (data.nodes || []).map((n, idx) => ({
-      id: n.id,
-      nodeName: n.nodeName || `节点-${idx + 1}`,
-      description: n.description,
-      nodeType: n.nodeType,
-      sortOrder: n.sortOrder ?? idx,
-      loopCount: n.loopCount,
-      methods: (n.methods || []).map(m => ({
-        id: m.id,
-        methodId: m.methodId,
-        methodName: m.methodName,
-        modelId: m.modelId,
-        modelName: m.modelName,
-        requirementId: m.requirementId,
-        requirementName: m.requirementName,
-        sortOrder: m.sortOrder
-      }))
-    }))
+    designData.nodes = (data.nodes || []).map((n, idx) => mapNodeData(n, idx))
     sortNodesByOrder()
   } catch (e) {
     ElMessage.error('加载编排失败')
@@ -149,8 +189,18 @@ let tempIdCounter = 0
 const genTempId = () => `temp-${Date.now()}-${tempIdCounter++}`
 
 const sortNodesByOrder = () => {
-  designData.nodes.sort((a, b) => a.sortOrder - b.sortOrder)
-  designData.nodes.forEach((n, i) => { n.sortOrder = i })
+  const sortRecursive = (nodes: DesignNode[]) => {
+    nodes.sort((a, b) => a.sortOrder - b.sortOrder)
+    nodes.forEach((n, i) => {
+      n.sortOrder = i
+      if (n.children && n.children.length > 0) {
+        sortRecursive(n.children)
+      }
+    })
+  }
+  sortRecursive(designData.nodes)
+  // 排序后更新选中节点引用
+  updateSelectedNode()
 }
 
 const addNode = (nodeType: string) => {
@@ -161,20 +211,83 @@ const addNode = (nodeType: string) => {
     nodeType,
     sortOrder: designData.nodes.length,
     loopCount: nodeType === 'LOOP' ? 1 : undefined,
+    width: 420,
     methods: []
   }
   designData.nodes.push(newNode)
   selectedNodeId.value = newNode.id!
 }
 
+// 在指定节点内添加子节点
+const addChildNode = (parentNodeId: string, nodeType: string) => {
+  const parentNode = findNodeById(designData.nodes, parentNodeId)
+  if (!parentNode) return
+  if (!parentNode.children) {
+    parentNode.children = []
+  }
+  const childCount = parentNode.children.length
+  const newNode: DesignNode = {
+    id: genTempId(),
+    parentId: parentNodeId,
+    nodeName: `${nodeTypeMap[nodeType].label}子节点-${childCount + 1}`,
+    description: '',
+    nodeType,
+    sortOrder: childCount,
+    loopCount: nodeType === 'LOOP' ? 1 : undefined,
+    width: 420,
+    methods: []
+  }
+  parentNode.children.push(newNode)
+  selectedNodeId.value = newNode.id!
+  ElMessage.success(`已在「${parentNode.nodeName}」内添加${nodeTypeMap[nodeType].label}子节点`)
+}
+
+const changeNodeType = (node: DesignNode | null, newType: string) => {
+  if (!node || node.nodeType === newType) return
+  const oldTypeLabel = nodeTypeMap[node.nodeType]?.label
+  const newTypeLabel = nodeTypeMap[newType]?.label
+  node.nodeType = newType
+  if (newType === 'LOOP' && !node.loopCount) {
+    node.loopCount = 1
+  }
+  ElMessage.success(`已将节点类型从「${oldTypeLabel}」修改为「${newTypeLabel}」`)
+}
+
+// 递归删除节点及其子节点
+const deleteNodeRecursive = (nodes: DesignNode[], nodeId: string): boolean => {
+  const idx = nodes.findIndex(n => n.id === nodeId)
+  if (idx !== -1) {
+    nodes.splice(idx, 1)
+    return true
+  }
+  for (const node of nodes) {
+    if (node.children && node.children.length > 0) {
+      if (deleteNodeRecursive(node.children, nodeId)) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
 const deleteNode = (nodeId: string) => {
-  const idx = designData.nodes.findIndex(n => n.id === nodeId)
-  if (idx === -1) return
-  designData.nodes.splice(idx, 1)
+  deleteNodeRecursive(designData.nodes, nodeId)
   sortNodesByOrder()
   if (selectedNodeId.value === nodeId) {
-    selectedNodeId.value = designData.nodes.length > 0 ? designData.nodes[0].id! : null
+    selectedNodeId.value = findFirstNodeId(designData.nodes)
+    updateSelectedNode()
   }
+}
+
+const findFirstNodeId = (nodes: DesignNode[]): string | null => {
+  for (const node of nodes) {
+    if (node.id) return node.id
+    if (node.children && node.children.length > 0) {
+      const found = findFirstNodeId(node.children)
+      if (found) return found
+    }
+  }
+  return null
 }
 
 const selectNode = (nodeId: string) => {
@@ -182,21 +295,142 @@ const selectNode = (nodeId: string) => {
 }
 
 const moveNodeUp = (nodeId: string) => {
-  const idx = designData.nodes.findIndex(n => n.id === nodeId)
-  if (idx <= 0) return
-  const temp = designData.nodes[idx]
-  designData.nodes[idx] = designData.nodes[idx - 1]
-  designData.nodes[idx - 1] = temp
-  sortNodesByOrder()
+  const findAndMoveUp = (nodes: DesignNode[]): boolean => {
+    const idx = nodes.findIndex(n => n.id === nodeId)
+    if (idx > 0) {
+      const temp = nodes[idx]
+      nodes[idx] = nodes[idx - 1]
+      nodes[idx - 1] = temp
+      sortNodesByOrder()
+      return true
+    }
+    for (const node of nodes) {
+      if (node.children && node.children.length > 0) {
+        if (findAndMoveUp(node.children)) return true
+      }
+    }
+    return false
+  }
+  findAndMoveUp(designData.nodes)
 }
 
 const moveNodeDown = (nodeId: string) => {
-  const idx = designData.nodes.findIndex(n => n.id === nodeId)
-  if (idx === -1 || idx >= designData.nodes.length - 1) return
-  const temp = designData.nodes[idx]
-  designData.nodes[idx] = designData.nodes[idx + 1]
-  designData.nodes[idx + 1] = temp
+  const findAndMoveDown = (nodes: DesignNode[]): boolean => {
+    const idx = nodes.findIndex(n => n.id === nodeId)
+    if (idx !== -1 && idx < nodes.length - 1) {
+      const temp = nodes[idx]
+      nodes[idx] = nodes[idx + 1]
+      nodes[idx + 1] = temp
+      sortNodesByOrder()
+      return true
+    }
+    for (const node of nodes) {
+      if (node.children && node.children.length > 0) {
+        if (findAndMoveDown(node.children)) return true
+      }
+    }
+    return false
+  }
+  findAndMoveDown(designData.nodes)
+}
+
+// ============ 画布缩放控制 ============
+const zoomIn = () => {
+  canvasScale.value = Math.min(canvasScale.value + 0.1, 2)
+}
+
+const zoomOut = () => {
+  canvasScale.value = Math.max(canvasScale.value - 0.1, 0.5)
+}
+
+const resetZoom = () => {
+  canvasScale.value = 1
+}
+
+const toggleLayout = () => {
+  canvasLayout.value = canvasLayout.value === 'vertical' ? 'horizontal' : 'vertical'
+}
+
+// ============ 节点拖拽排序 ============
+const onNodeDragStart = (nodeId: string) => {
+  draggingNodeId.value = nodeId
+  dragOverNodeIdForSort.value = null
+}
+
+const onNodeDragEnd = () => {
+  draggingNodeId.value = null
+  dragOverNodeIdForSort.value = null
+  dragOverPosition.value = 'before'
+}
+
+const onNodeDragOver = (e: DragEvent, nodeId: string) => {
+  if (!draggingNodeId.value || draggingNodeId.value === nodeId) return
+  e.preventDefault()
+  const target = e.currentTarget as HTMLElement
+  const rect = target.getBoundingClientRect()
+  const isHorizontal = canvasLayout.value === 'horizontal'
+  const position = isHorizontal ? (e.clientX - rect.left < rect.width / 2) : (e.clientY - rect.top < rect.height / 2)
+  dragOverPosition.value = position ? 'before' : 'after'
+  dragOverNodeIdForSort.value = nodeId
+}
+
+const onNodeDrop = (e: DragEvent, targetNodeId: string) => {
+  e.preventDefault()
+  if (!draggingNodeId.value || draggingNodeId.value === targetNodeId) {
+    onNodeDragEnd()
+    return
+  }
+
+  // 找到拖拽节点和目标节点所在的数组
+  const sourceInfo = findNodeAndParentArray(designData.nodes, draggingNodeId.value)
+  const targetInfo = findNodeAndParentArray(designData.nodes, targetNodeId)
+
+  if (!sourceInfo || !targetInfo) {
+    onNodeDragEnd()
+    return
+  }
+
+  const [sourceArray, sourceIdx] = sourceInfo
+  const [targetArray, targetIdx] = targetInfo
+
+  // 只允许在同级节点间拖拽排序
+  if (sourceArray !== targetArray) {
+    ElMessage.warning('只能在同级节点间拖拽排序')
+    onNodeDragEnd()
+    return
+  }
+
+  // 从原位置移除
+  const [draggedNode] = sourceArray.splice(sourceIdx, 1)
+
+  // 计算新位置
+  let newIdx = targetIdx
+  if (sourceIdx < targetIdx) {
+    newIdx = targetIdx - 1
+  }
+  if (dragOverPosition.value === 'after') {
+    newIdx = newIdx + 1
+  }
+
+  // 插入新位置
+  sourceArray.splice(newIdx, 0, draggedNode)
   sortNodesByOrder()
+  onNodeDragEnd()
+}
+
+// 递归查找节点及其父数组
+const findNodeAndParentArray = (nodes: DesignNode[], nodeId: string): [DesignNode[], number] | null => {
+  const idx = nodes.findIndex(n => n.id === nodeId)
+  if (idx !== -1) {
+    return [nodes, idx]
+  }
+  for (const node of nodes) {
+    if (node.children && node.children.length > 0) {
+      const found = findNodeAndParentArray(node.children, nodeId)
+      if (found) return found
+    }
+  }
+  return null
 }
 
 // ============ 左侧方法库状态 ============
@@ -233,7 +467,7 @@ const confirmAddMethodToNode = async () => {
   const method = methodDialogMethods.value.find(m => m.id === methodDialogSelectedMethodId.value)
   if (!method) return
 
-  const node = designData.nodes.find(n => n.id === methodDialogNodeId.value)
+  const node = findNodeById(designData.nodes, methodDialogNodeId.value)
   if (!node) return
 
   const exists = node.methods.some(m => m.methodId === method.id)
@@ -258,7 +492,7 @@ const confirmAddMethodToNode = async () => {
 }
 
 const removeMethodFromNode = (nodeId: string, methodId: string) => {
-  const node = designData.nodes.find(n => n.id === nodeId)
+  const node = findNodeById(designData.nodes, nodeId)
   if (!node) return
   const idx = node.methods.findIndex(m => m.methodId === methodId)
   if (idx !== -1) node.methods.splice(idx, 1)
@@ -352,7 +586,7 @@ const onMethodDrop = (e: DragEvent, nodeId: string, targetIndex: number) => {
     return
   }
 
-  const node = designData.nodes.find(n => n.id === nodeId)
+  const node = findNodeById(designData.nodes, nodeId)
   if (!node) {
     onMethodDragEnd()
     return
@@ -380,7 +614,7 @@ const getModelName = (modelId?: string) => {
 
 const addSelectedMethodToNode = (nodeId: string) => {
   if (!librarySelectedMethodId.value) return
-  const node = designData.nodes.find(n => n.id === nodeId)
+  const node = findNodeById(designData.nodes, nodeId)
   if (!node) return
 
   const method = modelMethodsCache[libraryModelId.value]?.find(m => m.id === librarySelectedMethodId.value)
@@ -410,7 +644,7 @@ const onDropNode = (e: DragEvent, nodeId: string) => {
   const method = draggingMethod.value
   if (!method) return
 
-  const node = designData.nodes.find(n => n.id === nodeId)
+  const node = findNodeById(designData.nodes, nodeId)
   if (!node) return
 
   const exists = node.methods.some(m => m.methodId === method.id)
@@ -478,7 +712,7 @@ const confirmCreateSubRequirement = async () => {
   }
 
   try {
-    const node = designData.nodes.find(n => n.id === subReqTargetNodeId.value)
+    const node = findNodeById(designData.nodes, subReqTargetNodeId.value)
     if (!node) return
 
     const exists = node.methods.some(m => m.methodId === subReqForm.methodId)
@@ -509,6 +743,42 @@ const confirmCreateSubRequirement = async () => {
 // ============ 保存 ============
 const isSaving = ref(false)
 
+// 递归构建节点payload
+const buildNodePayload = (n: DesignNode): any => ({
+  id: n.id?.startsWith('temp-') ? null : n.id,
+  parentId: n.parentId || null,
+  nodeName: n.nodeName,
+  description: n.description,
+  nodeType: n.nodeType,
+  sortOrder: n.sortOrder,
+  loopCount: n.loopCount,
+  width: n.width || 420,
+  methods: n.methods.map(m => {
+    const isTemp = m.id?.startsWith('temp-')
+    const hasSubReqId = !!(m.subRequirementId && m.subRequirementId !== '')
+    const isNewSubReq = !isTemp ? false : (!hasSubReqId && !!m.requirementName)
+
+    const methodPayload: any = {
+      id: isTemp ? null : m.id,
+      methodId: m.methodId,
+      sortOrder: m.sortOrder
+    }
+
+    if (isNewSubReq) {
+      methodPayload.parentRequirementId = m.requirementId || null
+      methodPayload.subRequirementName = m.requirementName || null
+      methodPayload.subRequirementDescription = null
+    } else if (hasSubReqId) {
+      methodPayload.subRequirementId = m.subRequirementId
+    } else if (m.requirementId) {
+      methodPayload.requirementId = m.requirementId
+    }
+
+    return methodPayload
+  }),
+  children: (n.children || []).map(child => buildNodePayload(child))
+})
+
 const handleSave = async () => {
   isSaving.value = true
   try {
@@ -517,37 +787,7 @@ const handleSave = async () => {
       code: designData.code,
       description: designData.description,
       status: designData.status,
-      nodes: designData.nodes.map(n => ({
-        id: n.id?.startsWith('temp-') ? null : n.id,
-        nodeName: n.nodeName,
-        description: n.description,
-        nodeType: n.nodeType,
-        sortOrder: n.sortOrder,
-        loopCount: n.loopCount,
-        methods: n.methods.map(m => {
-          const isTemp = m.id?.startsWith('temp-')
-          const hasSubReqId = !!(m.subRequirementId && m.subRequirementId !== '')
-          const isNewSubReq = !isTemp ? false : (!hasSubReqId && !!m.requirementName)
-
-          const methodPayload: any = {
-            id: isTemp ? null : m.id,
-            methodId: m.methodId,
-            sortOrder: m.sortOrder
-          }
-
-          if (isNewSubReq) {
-            methodPayload.parentRequirementId = m.requirementId || null
-            methodPayload.subRequirementName = m.requirementName || null
-            methodPayload.subRequirementDescription = null
-          } else if (hasSubReqId) {
-            methodPayload.subRequirementId = m.subRequirementId
-          } else if (m.requirementId) {
-            methodPayload.requirementId = m.requirementId
-          }
-
-          return methodPayload
-        })
-      }))
+      nodes: designData.nodes.map(n => buildNodePayload(n))
     }
     await orchestrationApi.saveDesign(orchestrationId, payload)
     ElMessage.success('保存成功')
@@ -686,143 +926,78 @@ onMounted(async () => {
 
       <!-- 中间画布 -->
       <div class="center-canvas" @dragover="onCanvasDragOver" @drop="onCanvasDrop">
+        <!-- 画布工具栏 -->
+        <div class="canvas-toolbar">
+          <div class="toolbar-group">
+            <el-tooltip content="缩小" placement="top">
+              <el-button :icon="ZoomOut" circle size="small" @click="zoomOut" />
+            </el-tooltip>
+            <span class="zoom-text">{{ Math.round(canvasScale * 100) }}%</span>
+            <el-tooltip content="放大" placement="top">
+              <el-button :icon="ZoomIn" circle size="small" @click="zoomIn" />
+            </el-tooltip>
+            <el-tooltip content="重置缩放" placement="top">
+              <el-button :icon="Aim" circle size="small" @click="resetZoom" />
+            </el-tooltip>
+          </div>
+          <div class="toolbar-group">
+            <el-tooltip :content="canvasLayout === 'vertical' ? '切换为横向布局' : '切换为纵向布局'" placement="top">
+              <el-button :icon="canvasLayout === 'vertical' ? Rank : Grid" circle size="small" @click="toggleLayout" />
+            </el-tooltip>
+          </div>
+        </div>
+
         <div v-if="designData.nodes.length === 0" class="empty-canvas">
           <el-empty description="点击左侧「节点类型」开始搭建业务流程">
             <el-button type="primary" @click="addNode('SERIAL')">创建第一个节点</el-button>
           </el-empty>
         </div>
 
-        <div v-else class="canvas-content">
-          <template v-for="(node, index) in designData.nodes" :key="node.id">
-            <!-- 连接线 -->
-            <div v-if="index > 0" class="canvas-connector">
-              <div class="connector-arrow" :style="{ color: nodeTypeMap[designData.nodes[index - 1].nodeType]?.color }">
-                {{ nodeTypeMap[designData.nodes[index - 1].nodeType]?.icon || '→' }}
-              </div>
-              <div class="connector-line" :style="{ background: nodeTypeMap[designData.nodes[index - 1].nodeType]?.color }"></div>
-            </div>
-
-            <!-- 节点卡片 -->
-            <div
-              class="canvas-node"
-              :class="{ selected: selectedNodeId === node.id, 'drag-over': dragOverNodeId === node.id }"
-              :style="{ borderColor: nodeTypeMap[node.nodeType]?.color }"
-              @click="selectNode(node.id!)"
-              @dragover="(e) => onDragOverNode(e, node.id!)"
-              @dragleave="onDragLeaveNode(node.id!)"
-              @drop="(e) => onDropNode(e, node.id!)"
-            >
-              <div class="node-header" :style="{ borderBottomColor: nodeTypeMap[node.nodeType]?.color }">
-                <div class="node-header-left">
-                  <span
-                    class="node-type-tag"
-                    :style="{ backgroundColor: nodeTypeMap[node.nodeType]?.color }"
-                  >
-                    {{ nodeTypeMap[node.nodeType]?.label }}
-                  </span>
-                  <span class="node-name">{{ node.nodeName }}</span>
+        <div v-else class="canvas-viewport">
+          <div
+            class="canvas-content"
+            :class="{ 'layout-horizontal': canvasLayout === 'horizontal' }"
+            :style="{ transform: `scale(${canvasScale})`, transformOrigin: 'top center' }"
+          >
+            <template v-for="(node, index) in designData.nodes" :key="node.id">
+              <!-- 连接线 -->
+              <div v-if="index > 0" class="canvas-connector" :class="{ 'connector-horizontal': canvasLayout === 'horizontal' }">
+                <div class="connector-arrow" :style="{ color: nodeTypeMap[designData.nodes[index - 1].nodeType]?.color }">
+                  {{ nodeTypeMap[designData.nodes[index - 1].nodeType]?.icon || '→' }}
                 </div>
-                <div class="node-header-actions" @click.stop>
-                  <el-button
-                    link
-                    size="small"
-                    :icon="Delete"
-                    type="danger"
-                    @click="deleteNode(node.id!)"
-                  />
-                </div>
+                <div class="connector-line" :style="{ background: nodeTypeMap[designData.nodes[index - 1].nodeType]?.color }"></div>
               </div>
 
-              <div class="node-content">
-                <div v-if="node.description" class="node-desc">{{ node.description }}</div>
-                <div v-if="node.nodeType === 'LOOP'" class="node-loop">
-                  循环 <strong>{{ node.loopCount || 1 }}</strong> 次
-                </div>
-
-                <!-- 方法列表 -->
-                <div class="node-methods">
-                  <template v-if="node.nodeType === 'PARALLEL' && node.methods.length > 0">
-                    <div class="parallel-branch">
-                      <div
-                        v-for="(m, idx) in node.methods"
-                        :key="m.id || m.methodId"
-                        class="method-branch-item"
-                        :class="{ 'method-drag-over': dragOverMethodIndex?.nodeId === node.id && dragOverMethodIndex?.index === idx }"
-                        :draggable="node.methods.length > 1"
-                        @dragstart="onMethodDragStart(node.id!, m.methodId)"
-                        @dragend="onMethodDragEnd"
-                        @dragover="(e) => onMethodDragOver(e, node.id!, idx)"
-                        @dragleave="onMethodDragLeave(node.id!, idx)"
-                        @drop="(e) => onMethodDrop(e, node.id!, idx)"
-                      >
-                        <div class="branch-line"></div>
-                        <div class="branch-method">
-                          <span class="bm-drag-handle" v-if="node.methods.length > 1">⋮⋮</span>
-                          <span class="bm-name">{{ m.methodName }}</span>
-                          <el-tag v-if="m.modelName" size="small" type="info">{{ m.modelName }}</el-tag>
-                        </div>
-                      </div>
-                    </div>
-                  </template>
-                  <template v-else-if="node.methods.length > 0">
-                    <div
-                      v-for="(m, idx) in node.methods"
-                      :key="m.id || m.methodId"
-                      class="method-row"
-                      :class="{ 'method-drag-over': dragOverMethodIndex?.nodeId === node.id && dragOverMethodIndex?.index === idx, 'dragging-row': draggingNodeMethod?.nodeId === node.id && draggingNodeMethod?.methodId === m.methodId }"
-                      :draggable="node.methods.length > 1"
-                      @dragstart="onMethodDragStart(node.id!, m.methodId)"
-                      @dragend="onMethodDragEnd"
-                      @dragover="(e) => onMethodDragOver(e, node.id!, idx)"
-                      @dragleave="onMethodDragLeave(node.id!, idx)"
-                      @drop="(e) => onMethodDrop(e, node.id!, idx)"
-                    >
-                      <span class="mr-drag-handle" v-if="node.methods.length > 1">⋮⋮</span>
-                      <span v-if="node.nodeType === 'SERIAL' && node.methods.length > 1" class="method-order">
-                        {{ idx + 1 }}.
-                      </span>
-                      <span class="mr-name">{{ m.methodName }}</span>
-                      <el-tag v-if="m.modelName" size="small" type="info">{{ m.modelName }}</el-tag>
-                      <el-button
-                        link
-                        size="small"
-                        type="danger"
-                        :icon="Delete"
-                        @click="removeMethodFromNode(node.id!, m.methodId)"
-                      />
-                    </div>
-                  </template>
-                  <div v-else class="node-empty-methods">
-                    暂无方法
-                  </div>
-                </div>
-
-                <div class="node-footer">
-                  <el-button
-                    type="primary"
-                    link
-                    :icon="Plus"
-                    @click.stop="openMethodDialog(node.id!)"
-                  >
-                    添加方法
-                  </el-button>
-                  <el-tooltip
-                    v-if="librarySelectedMethodId && node.methods.findIndex(m => m.methodId === librarySelectedMethodId) === -1"
-                    content="点击确认添加选中方法，或直接拖拽方法到节点"
-                    placement="top"
-                  >
-                    <el-button
-                      type="success"
-                      link
-                      @click.stop="addSelectedMethodToNode(node.id!)"
-                    >
-                      + 添加「{{ modelMethodsCache[libraryModelId]?.find(m => m.id === librarySelectedMethodId)?.name }}」
-                    </el-button>
-                  </el-tooltip>
-                </div>
-              </div>
-            </div>
-          </template>
+              <!-- 节点卡片（支持嵌套子节点） -->
+              <NodeCard
+                :node="node"
+                :node-type-map="nodeTypeMap"
+                :selected-node-id="selectedNodeId"
+                :dragging-node-method="draggingNodeMethod"
+                :drag-over-method-index="dragOverMethodIndex"
+                :dragging-node-id="draggingNodeId"
+                :drag-over-node-id-for-sort="dragOverNodeIdForSort"
+                :drag-over-position="dragOverPosition"
+                :canvas-layout="canvasLayout"
+                :on-select-node="selectNode"
+                :on-delete-node="deleteNode"
+                :on-add-child-node="addChildNode"
+                :on-add-method="openMethodDialog"
+                :on-remove-method="removeMethodFromNode"
+                :on-method-drag-start="onMethodDragStart"
+                :on-method-drag-end="onMethodDragEnd"
+                :on-method-drag-over="onMethodDragOver"
+                :on-method-drag-leave="onMethodDragLeave"
+                :on-method-drop="onMethodDrop"
+                :on-node-drag-start="onNodeDragStart"
+                :on-node-drag-end="onNodeDragEnd"
+                :on-node-drag-over="onNodeDragOver"
+                :on-node-drop="onNodeDrop"
+                :dragging-method="draggingMethod"
+                :on-drop-node="onDropNode"
+              />
+            </template>
+          </div>
         </div>
       </div>
 
@@ -837,12 +1012,27 @@ onMounted(async () => {
           <div class="property-form">
             <div class="property-item">
               <label>节点类型</label>
-              <el-tag
-                :style="{ backgroundColor: nodeTypeMap[selectedNode.nodeType]?.color, color: '#fff', border: 'none' }"
-                size="large"
+              <el-select
+                :model-value="selectedNode?.nodeType"
+                @update:model-value="(val: string) => changeNodeType(selectedNode, val)"
+                placeholder="请选择节点类型"
               >
-                {{ nodeTypeMap[selectedNode.nodeType]?.label }}
-              </el-tag>
+                <el-option
+                  v-for="(info, type) in nodeTypeMap"
+                  :key="type"
+                  :label="info.label"
+                  :value="type"
+                >
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span
+                      style="display: inline-block; width: 12px; height: 12px; border-radius: 3px;"
+                      :style="{ backgroundColor: info.color }"
+                    ></span>
+                    <span>{{ info.label }}</span>
+                    <span style="color: #909399; font-size: 12px;">{{ info.desc }}</span>
+                  </div>
+                </el-option>
+              </el-select>
             </div>
 
             <div class="property-item">
@@ -1248,10 +1438,43 @@ onMounted(async () => {
   flex: 1;
   background: white;
   border-radius: 10px;
-  padding: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  overflow-y: auto;
+  overflow: hidden;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+
+  .canvas-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    border-bottom: 1px solid #ebeef5;
+    background: #fafbfc;
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .zoom-text {
+      font-size: 13px;
+      color: #606266;
+      min-width: 40px;
+      text-align: center;
+    }
+  }
+
+  .canvas-viewport {
+    flex: 1;
+    overflow: auto;
+    padding: 20px;
+    background: #f5f7fa;
+    background-image:
+      radial-gradient(circle, #dcdfe6 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
 
   .empty-canvas {
     display: flex;
@@ -1265,6 +1488,15 @@ onMounted(async () => {
     flex-direction: column;
     align-items: center;
     padding: 20px 0;
+    min-width: fit-content;
+    transform-origin: top center;
+    transition: transform 0.1s ease-out;
+
+    &.layout-horizontal {
+      flex-direction: row;
+      align-items: flex-start;
+      padding: 0 20px;
+    }
   }
 
   .canvas-connector {
@@ -1273,6 +1505,23 @@ onMounted(async () => {
     align-items: center;
     height: 36px;
     position: relative;
+
+    &.connector-horizontal {
+      flex-direction: row;
+      width: 36px;
+      height: auto;
+
+      .connector-line {
+        width: 100%;
+        height: 2px;
+        min-height: 8px;
+        min-width: 8px;
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+    }
 
     .connector-arrow {
       font-size: 18px;

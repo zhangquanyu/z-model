@@ -23,6 +23,9 @@ public class OrchestrationNode {
     @Column(name = "orchestration_id", nullable = false, length = 36)
     private String orchestrationId;
 
+    @Column(name = "parent_id", length = 36)
+    private String parentId;
+
     @Column(name = "node_type", length = 20)
     private String nodeType;
 
@@ -37,6 +40,9 @@ public class OrchestrationNode {
 
     @Column(name = "loop_count")
     private Integer loopCount;
+
+    @Column(name = "width")
+    private Integer width;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
