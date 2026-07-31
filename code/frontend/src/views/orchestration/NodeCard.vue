@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Delete, Plus } from '@element-plus/icons-vue'
 
 interface DesignMethod {
@@ -54,9 +54,13 @@ const props = defineProps<{
   onNodeDrop: (e: DragEvent, nodeId: string) => void
   onDropNode: (e: DragEvent, nodeId: string) => void
   suggestedWidth?: number  // 父节点推荐的宽度（用于横向布局时自适应）
+  onUpdateWidth?: (id: string, width: number) => void  // 更新节点宽度
 }>()
 
 const showAddChildMenu = ref(false)
+const emit = defineEmits<{
+  (e: 'update:width', id: string, width: number): void
+}>()
 
 const addChildNode = (nodeType: string) => {
   if (props.node.id) {
@@ -70,32 +74,40 @@ const hasChildren = computed(() => props.node.children && props.node.children.le
 // 响应式判断子节点布局：
 // 1. 并行节点优先横向（宽度足够时）
 // 2. 串行/循环节点：宽度足够时横向，不够时纵向
-const CHILD_MIN_WIDTH = 280 // 每个子节点最小宽度
+const CHILD_MIN_WIDTH = 160 // 每个子节点最小宽度（降低以便更容易横向排列）
 const CHILD_MAX_WIDTH = 500 // 每个子节点最大宽度
-const H_GAP = 16 // 横向间距
-const PADDING = 28 // 容器内边距
+const H_GAP = 10 // 横向间距
+const BORDER_WIDTH = 4 // 外层节点 border（2px * 2）
+const CHILDREN_PADDING_X = 20 // 子节点容器左右 padding（10px * 2）
+const CHILD_BORDER_WIDTH = 4 // 子节点 border（2px * 2）
+const CHILD_WRAPPER_PADDING_LEFT = 16 // 子节点容器左侧 padding（用于纵向时的连接线）
 
 const childrenLayout = computed(() => {
   if (!props.node.children || props.node.children.length === 0) {
     return 'vertical'
   }
-  const nodeWidth = props.node.width || 420
+  // 使用 effectiveWidth 确保布局计算与渲染宽度一致
+  const nodeWidth = effectiveWidth.value
   const childCount = props.node.children.length
-  const availableWidth = nodeWidth - PADDING * 2
-  const needWidth = childCount * CHILD_MIN_WIDTH + (childCount - 1) * H_GAP
+  
+  // 实际可用宽度 = 节点宽度 - 外层border - 子节点容器padding
+  const horizontalAvailableWidth = nodeWidth - BORDER_WIDTH - CHILDREN_PADDING_X
+  
+  // 需要的宽度 = 子节点最小宽度 + 子节点border + 间距
+  const needWidth = childCount * (CHILD_MIN_WIDTH + CHILD_BORDER_WIDTH) + (childCount - 1) * H_GAP
   
   // 并行节点：宽度足够时横向，否则纵向
   if (props.node.nodeType === 'PARALLEL') {
-    return availableWidth >= needWidth ? 'horizontal' : 'vertical'
+    return horizontalAvailableWidth >= needWidth ? 'horizontal' : 'vertical'
   }
   
   // 其他节点：只有一个子节点时也横向更美观
-  if (childCount === 1 && availableWidth >= CHILD_MIN_WIDTH) {
+  if (childCount === 1 && horizontalAvailableWidth >= (CHILD_MIN_WIDTH + CHILD_BORDER_WIDTH)) {
     return 'horizontal'
   }
   
   // 多个子节点时，宽度足够才横向
-  return availableWidth >= needWidth ? 'horizontal' : 'vertical'
+  return horizontalAvailableWidth >= needWidth ? 'horizontal' : 'vertical'
 })
 
 // 计算横向布局时每个子节点的推荐宽度
@@ -103,12 +115,15 @@ const childSuggestedWidth = computed(() => {
   if (childrenLayout.value !== 'horizontal') {
     return CHILD_MIN_WIDTH
   }
-  const nodeWidth = props.node.width || 420
+  // 使用 effectiveWidth 保持与 childrenLayout 一致
+  const nodeWidth = effectiveWidth.value
   const childCount = props.node.children?.length || 1
-  const availableWidth = nodeWidth - PADDING * 2
+  const horizontalAvailableWidth = nodeWidth - BORDER_WIDTH - CHILDREN_PADDING_X
   const totalGap = (childCount - 1) * H_GAP
+  // 减去子节点的border
+  const netWidth = horizontalAvailableWidth - totalGap - childCount * CHILD_BORDER_WIDTH
   // 平均分配宽度，但限制在最小和最大范围内
-  const avgWidth = Math.floor((availableWidth - totalGap) / childCount)
+  const avgWidth = Math.floor(netWidth / childCount)
   return Math.max(CHILD_MIN_WIDTH, Math.min(CHILD_MAX_WIDTH, avgWidth))
 })
 
@@ -140,21 +155,32 @@ const resizeStartWidth = ref(0)
 const MIN_WIDTH = 280
 const MAX_WIDTH = 800
 
-const currentWidth = computed(() => {
-  // 如果正在调整大小，使用实时更新的宽度
-  if (isResizing.value) {
-    return props.node.width || 420
+// 本地存储的宽度，用于拖拽过程中保持响应性
+const localWidth = ref(props.node.width || 420)
+
+// 当 props.node.width 变化时同步本地宽度
+watch(() => props.node.width, (newVal) => {
+  if (!isResizing.value && newVal) {
+    localWidth.value = newVal
   }
-  // 如果父节点推荐了宽度，优先使用（用于横向布局自适应）
+})
+
+// 统一的有效宽度：考虑 suggestedWidth 和 localWidth
+// 用于计算布局和渲染
+const effectiveWidth = computed(() => {
+  // 如果父节点建议了宽度，且与当前宽度差距较大，则使用建议宽度
   if (props.suggestedWidth && props.suggestedWidth > 0) {
-    // 但如果节点有自己保存的宽度，且差异不大，优先用自己的
-    const ownWidth = props.node.width || 420
-    // 只有当自己的宽度是默认值或差异较大时才使用推荐宽度
-    if (!props.node.width || Math.abs(ownWidth - props.suggestedWidth) > 50) {
+    const ownWidth = localWidth.value
+    // 当本地宽度为默认值或与建议宽度差距较大时，使用建议宽度
+    if (!props.node.width || Math.abs(ownWidth - props.suggestedWidth) > 20) {
       return props.suggestedWidth
     }
   }
-  return props.node.width || 420
+  return localWidth.value
+})
+
+const currentWidth = computed(() => {
+  return effectiveWidth.value
 })
 
 const startResize = (e: MouseEvent) => {
@@ -163,6 +189,7 @@ const startResize = (e: MouseEvent) => {
   isResizing.value = true
   resizeStartX.value = e.clientX
   resizeStartWidth.value = currentWidth.value
+  localWidth.value = currentWidth.value
   document.addEventListener('mousemove', onResizeMove)
   document.addEventListener('mouseup', onResizeEnd)
 }
@@ -172,10 +199,19 @@ const onResizeMove = (e: MouseEvent) => {
   const deltaX = e.clientX - resizeStartX.value
   let newWidth = resizeStartWidth.value + deltaX
   newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, newWidth))
-  props.node.width = newWidth
+  // 更新本地宽度以触发响应式
+  localWidth.value = newWidth
 }
 
 const onResizeEnd = () => {
+  if (isResizing.value && props.node.id) {
+    // 只通过回调通知父组件更新，不直接修改 props
+    if (props.onUpdateWidth) {
+      props.onUpdateWidth(props.node.id, localWidth.value)
+    } else {
+      emit('update:width', props.node.id, localWidth.value)
+    }
+  }
   isResizing.value = false
   document.removeEventListener('mousemove', onResizeMove)
   document.removeEventListener('mouseup', onResizeEnd)
@@ -184,6 +220,13 @@ const onResizeEnd = () => {
 onUnmounted(() => {
   document.removeEventListener('mousemove', onResizeMove)
   document.removeEventListener('mouseup', onResizeEnd)
+})
+
+onMounted(() => {
+  // 确保 localWidth 使用正确的初始值
+  if (props.node.width) {
+    localWidth.value = props.node.width
+  }
 })
 </script>
 
@@ -267,7 +310,7 @@ onUnmounted(() => {
           <div class="parallel-branch">
             <div
               v-for="(m, idx) in node.methods"
-              :key="m.id || m.methodId"
+              :key="m.id || (m.methodId + '-' + idx)"
               class="method-branch-item"
               :class="{ 'method-drag-over': dragOverMethodIndex?.nodeId === node.id && dragOverMethodIndex?.index === idx }"
               :draggable="node.methods.length > 1"
@@ -289,7 +332,7 @@ onUnmounted(() => {
         <template v-else-if="node.methods.length > 0">
           <div
             v-for="(m, idx) in node.methods"
-            :key="m.id || m.methodId"
+            :key="m.id || (m.methodId + '-' + idx)"
             class="method-row"
             :class="{ 'method-drag-over': dragOverMethodIndex?.nodeId === node.id && dragOverMethodIndex?.index === idx, 'dragging-row': draggingNodeMethod?.nodeId === node.id && draggingNodeMethod?.methodId === m.methodId }"
             :draggable="node.methods.length > 1"
@@ -342,7 +385,7 @@ onUnmounted(() => {
 
       <div
         v-for="(child, childIdx) in node.children"
-        :key="child.id"
+        :key="child.id || ('child-' + childIdx)"
         class="child-node-wrapper"
         :class="{ 'child-horizontal': childrenLayout === 'horizontal' }"
       >
@@ -375,6 +418,7 @@ onUnmounted(() => {
           :dragging-method="draggingMethod"
           :on-drop-node="onDropNode"
           :suggested-width="childrenLayout === 'horizontal' ? childSuggestedWidth : undefined"
+          :on-update-width="onUpdateWidth"
         />
       </div>
     </div>

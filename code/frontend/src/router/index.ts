@@ -132,6 +132,43 @@ const routes: RouteRecordRaw[] = [
     name: 'OrchestrationDesign',
     component: () => import('@/views/orchestration/OrchestrationDesigner.vue')
   },
+  // 物理模型路由
+  {
+    path: '/physical-models',
+    name: 'PhysicalModelList',
+    component: () => import('@/views/physical-model/PhysicalModelList.vue')
+  },
+  {
+    path: '/physical-models/:id',
+    name: 'PhysicalModelDetail',
+    component: () => import('@/views/physical-model/PhysicalModelDetail.vue')
+  },
+  {
+    path: '/physical-models/:id/properties',
+    name: 'PhysicalPropertyList',
+    component: () => import('@/views/physical-model/PhysicalPropertyList.vue')
+  },
+  {
+    path: '/physical-models/:id/methods',
+    name: 'PhysicalMethodList',
+    component: () => import('@/views/physical-model/PhysicalMethodList.vue')
+  },
+  // 功能编排路由
+  {
+    path: '/functional-orchestrations',
+    name: 'FunctionalOrchestrationList',
+    component: () => import('@/views/functional-orchestration/FunctionalOrchestrationList.vue')
+  },
+  {
+    path: '/functional-orchestrations/:id',
+    name: 'FunctionalOrchestrationDetail',
+    component: () => import('@/views/functional-orchestration/FunctionalOrchestrationDetail.vue')
+  },
+  {
+    path: '/functional-orchestrations/:id/design',
+    name: 'FunctionalOrchestrationDesign',
+    component: () => import('@/views/functional-orchestration/FunctionalOrchestrationDesigner.vue')
+  }
   ]
 
 const router = createRouter({

@@ -668,6 +668,14 @@ const onDropNode = (e: DragEvent, nodeId: string) => {
   ElMessage.success('方法已拖入节点')
 }
 
+// 处理节点宽度更新（拖拽调整大小后）
+const handleNodeWidthUpdate = (nodeId: string, width: number) => {
+  const node = findNodeById(designData.nodes, nodeId)
+  if (node) {
+    node.width = width
+  }
+}
+
 // ============ 子需求创建弹窗 ============
 const showSubReqDialog = ref(false)
 const subReqForm = reactive({
@@ -995,6 +1003,7 @@ onMounted(async () => {
                 :on-node-drop="onNodeDrop"
                 :dragging-method="draggingMethod"
                 :on-drop-node="onDropNode"
+                :on-update-width="handleNodeWidthUpdate"
               />
             </template>
           </div>

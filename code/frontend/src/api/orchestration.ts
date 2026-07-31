@@ -32,12 +32,15 @@ export interface OrchestrationNodeMethod {
 export interface OrchestrationNode {
   id?: string
   orchestrationId?: string
+  parentId?: string
   nodeType: string
   nodeName?: string
   description?: string
   sortOrder?: number
   loopCount?: number
+  width?: number
   methods?: OrchestrationNodeMethod[]
+  children?: OrchestrationNode[]
   createdAt?: string
 }
 

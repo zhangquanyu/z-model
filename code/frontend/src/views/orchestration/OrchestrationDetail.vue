@@ -3,7 +3,8 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Edit, Delete, ArrowLeft, Plus } from '@element-plus/icons-vue'
-import { orchestrationApi, type Orchestration } from '@/api/orchestration'
+import { orchestrationApi, type Orchestration, type OrchestrationNode } from '@/api/orchestration'
+import NodeTreeItem from './NodeTreeItem.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -71,6 +72,37 @@ const handleBack = () => {
 onMounted(() => {
   loadOrchestration()
 })
+
+// 递归计算节点总数（包含子节点）
+const totalNodeCount = computed(() => {
+  if (!orchestration.value?.nodes) return 0
+  const countNodes = (nodes: OrchestrationNode[]): number => {
+    let count = nodes.length
+    for (const node of nodes) {
+      if (node.children && node.children.length > 0) {
+        count += countNodes(node.children)
+      }
+    }
+    return count
+  }
+  return countNodes(orchestration.value.nodes)
+})
+
+// 递归计算方法总数（包含子节点的方法）
+const totalMethodCount = computed(() => {
+  if (!orchestration.value?.nodes) return 0
+  const countMethods = (nodes: OrchestrationNode[]): number => {
+    let count = 0
+    for (const node of nodes) {
+      count += node.methods?.length || 0
+      if (node.children && node.children.length > 0) {
+        count += countMethods(node.children)
+      }
+    }
+    return count
+  }
+  return countMethods(orchestration.value.nodes)
+})
 </script>
 
 <template>
@@ -100,13 +132,11 @@ onMounted(() => {
             <h3>统计信息</h3>
             <div class="stats-row">
               <div class="stat-item">
-                <div class="stat-value">{{ orchestration.nodes?.length || 0 }}</div>
+                <div class="stat-value">{{ totalNodeCount }}</div>
                 <div class="stat-label">编排节点</div>
               </div>
               <div class="stat-item">
-                <div class="stat-value">
-                  {{ orchestration.nodes?.reduce((sum, n) => sum + (n.methods?.length || 0), 0) || 0 }}
-                </div>
+                <div class="stat-value">{{ totalMethodCount }}</div>
                 <div class="stat-label">方法总数</div>
               </div>
               <div class="stat-item">
@@ -127,36 +157,14 @@ onMounted(() => {
               <el-empty description="暂无编排节点，点击右上角「编排设计」添加" />
             </div>
             <div v-else class="nodes-list">
-              <div v-for="(node, index) in orchestration.nodes" :key="node.id" class="node-card">
-                <div class="node-header">
-                  <span class="node-index">{{ index + 1 }}</span>
-                  <el-tag :style="{ backgroundColor: nodeTypeMap[node.nodeType]?.color, color: '#fff', border: 'none' }">
-                    {{ nodeTypeMap[node.nodeType]?.label || node.nodeType }}
-                  </el-tag>
-                  <span class="node-name">{{ node.nodeName || `节点-${index + 1}` }}</span>
-                  <el-tag v-if="node.nodeType === 'LOOP'" type="warning" size="small">
-                    循环次数: {{ node.loopCount || 1 }}
-                  </el-tag>
-                </div>
-                <div class="node-description" v-if="node.description">
-                  {{ node.description }}
-                </div>
-                <div class="node-methods">
-                  <div v-if="!node.methods || node.methods.length === 0" class="no-methods">
-                    未绑定方法
-                  </div>
-                  <div v-for="method in node.methods" :key="method.id" class="method-item">
-                    <div class="method-info">
-                      <span class="method-name">{{ method.methodName || '未知方法' }}</span>
-                      <span class="method-code">{{ method.methodCode }}</span>
-                    </div>
-                    <div class="method-meta">
-                      <el-tag v-if="method.modelName" size="small" type="info">{{ method.modelName }}</el-tag>
-                      <el-tag v-if="method.requirementName" size="small" type="success">{{ method.requirementName }}</el-tag>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <NodeTreeItem
+                v-for="(node, index) in orchestration.nodes"
+                :key="node.id || index"
+                :node="node"
+                :node-type-map="nodeTypeMap"
+                :index="index"
+                :level="0"
+              />
             </div>
           </div>
         </el-tab-pane>
@@ -273,88 +281,7 @@ onMounted(() => {
     .nodes-list {
       display: flex;
       flex-direction: column;
-      gap: 16px;
-    }
-
-    .node-card {
-      border: 1px solid #e4e7ed;
-      border-radius: 8px;
-      padding: 16px;
-      background: #fafbfc;
-
-      .node-header {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 8px;
-
-        .node-index {
-          width: 28px;
-          height: 28px;
-          border-radius: 50%;
-          background: var(--primary-color);
-          color: white;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 14px;
-          font-weight: 600;
-        }
-
-        .node-name {
-          font-weight: 500;
-          font-size: 16px;
-        }
-      }
-
-      .node-description {
-        color: #909399;
-        font-size: 13px;
-        margin-bottom: 8px;
-      }
-
-      .node-methods {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        padding-left: 38px;
-      }
-
-      .no-methods {
-        padding-left: 38px;
-        color: #c0c4cc;
-        font-size: 13px;
-      }
-
-      .method-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 8px 12px;
-        background: white;
-        border-radius: 4px;
-        border: 1px solid #ebeef5;
-
-        .method-info {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-
-          .method-name {
-            font-weight: 500;
-          }
-
-          .method-code {
-            color: #909399;
-            font-size: 13px;
-          }
-        }
-
-        .method-meta {
-          display: flex;
-          gap: 6px;
-        }
-      }
+      gap: 10px;
     }
   }
 

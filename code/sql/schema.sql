@@ -196,3 +196,131 @@ INSERT INTO bpmn_process_version (id, process_id, version, bpmn_xml, change_note
 INSERT INTO process_node_model (id, process_id, node_id, model_id) VALUES 
 ('1', '1', 'UserTask_1', '1'),
 ('2', '1', 'UserTask_2', '1');
+
+-- =============================================
+-- 技术处理模块 - 物理模型相关表
+-- =============================================
+
+CREATE TABLE IF NOT EXISTS physical_model (
+    id VARCHAR(36) PRIMARY KEY COMMENT '主键ID',
+    model_id VARCHAR(36) NOT NULL COMMENT '关联业务模型ID',
+    name VARCHAR(100) NOT NULL COMMENT '物理模型名称',
+    code VARCHAR(50) UNIQUE COMMENT '物理模型编号',
+    description LONGTEXT COMMENT '描述(富文本HTML)',
+    table_name VARCHAR(100) COMMENT '生成的数据库表名',
+    status VARCHAR(20) DEFAULT 'DRAFT' COMMENT '状态(DRAFT/DESIGNING/COMPLETED)',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    KEY idx_model_id (model_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='物理模型表';
+
+CREATE TABLE IF NOT EXISTS physical_property (
+    id VARCHAR(36) PRIMARY KEY COMMENT '主键ID',
+    physical_model_id VARCHAR(36) NOT NULL COMMENT '物理模型ID',
+    source_property_id VARCHAR(36) COMMENT '关联原业务模型的属性ID',
+    source_method_id VARCHAR(36) COMMENT '关联原业务模型的方法ID',
+    name VARCHAR(100) NOT NULL COMMENT '属性名称',
+    code VARCHAR(50) COMMENT '属性编码',
+    data_type VARCHAR(20) NOT NULL COMMENT '数据类型(STRING/INTEGER/LONG/DOUBLE/BOOLEAN/DATE/DATETIME/ENUM/OBJECT/ARRAY)',
+    db_type VARCHAR(50) COMMENT '数据库字段类型(VARCHAR/INT/BIGINT/DECIMAL/TINYINT/DATE/DATETIME/JSON/TEXT)',
+    db_length INT COMMENT '数据库字段长度',
+    db_precision INT COMMENT '数值精度(DECIMAL专用)',
+    db_scale INT COMMENT '数值小数位(DECIMAL专用)',
+    nullable BOOLEAN DEFAULT TRUE COMMENT '是否可空',
+    is_primary_key BOOLEAN DEFAULT FALSE COMMENT '是否主键',
+    is_index BOOLEAN DEFAULT FALSE COMMENT '是否索引',
+    default_value VARCHAR(255) COMMENT '默认值',
+    description LONGTEXT COMMENT '描述(富文本HTML)',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    KEY idx_physical_model_id (physical_model_id),
+    KEY idx_source_property_id (source_property_id),
+    KEY idx_source_method_id (source_method_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='物理扩展属性表';
+
+CREATE TABLE IF NOT EXISTS physical_method (
+    id VARCHAR(36) PRIMARY KEY COMMENT '主键ID',
+    physical_model_id VARCHAR(36) NOT NULL COMMENT '物理模型ID',
+    source_method_id VARCHAR(36) NOT NULL COMMENT '关联原业务模型的方法ID',
+    name VARCHAR(100) NOT NULL COMMENT '物理方法名称',
+    code VARCHAR(50) COMMENT '物理方法编码',
+    method_type VARCHAR(30) COMMENT '方法类型(INSERT/UPDATE/DELETE/SELECT/CUSTOM)',
+    description LONGTEXT COMMENT '描述(富文本HTML)',
+    sql_template LONGTEXT COMMENT 'SQL模板语句',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    KEY idx_physical_model_id (physical_model_id),
+    KEY idx_source_method_id (source_method_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='物理扩展方法表';
+
+CREATE TABLE IF NOT EXISTS physical_method_param (
+    id VARCHAR(36) PRIMARY KEY COMMENT '主键ID',
+    physical_method_id VARCHAR(36) NOT NULL COMMENT '物理方法ID',
+    physical_property_id VARCHAR(36) NOT NULL COMMENT '物理属性ID',
+    param_type VARCHAR(20) NOT NULL COMMENT '参数类型(INPUT/OUTPUT)',
+    sort_order INT DEFAULT 0 COMMENT '排序',
+    UNIQUE KEY uk_physical_method_property (physical_method_id, physical_property_id, param_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='物理方法参数表';
+
+-- =============================================
+-- 技术处理模块 - 功能编排相关表
+-- =============================================
+
+CREATE TABLE IF NOT EXISTS functional_orchestration (
+    id VARCHAR(36) PRIMARY KEY COMMENT '主键ID',
+    orchestration_id VARCHAR(36) COMMENT '关联业务编排ID(可选，1:1)',
+    name VARCHAR(100) NOT NULL COMMENT '功能编排名称',
+    code VARCHAR(50) UNIQUE COMMENT '功能编排编号',
+    description LONGTEXT COMMENT '描述(富文本HTML)',
+    status VARCHAR(20) DEFAULT 'DRAFT' COMMENT '状态(DRAFT/DESIGNING/CODE_GENERATED)',
+    generated_code LONGTEXT COMMENT '生成的脚手架代码',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    KEY idx_orchestration_id (orchestration_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='功能编排表';
+
+CREATE TABLE IF NOT EXISTS fo_node (
+    id VARCHAR(36) PRIMARY KEY COMMENT '主键ID',
+    orchestration_id VARCHAR(36) NOT NULL COMMENT '功能编排ID',
+    parent_id VARCHAR(36) COMMENT '父节点ID',
+    node_type VARCHAR(30) NOT NULL COMMENT '节点类型(SERIAL/PARALLEL/LOOP/CONDITION/DB_READ/DB_WRITE/API_CALL/TRANSFORM)',
+    node_name VARCHAR(200) COMMENT '节点名称',
+    description LONGTEXT COMMENT '描述',
+    sort_order INT DEFAULT 0 COMMENT '排序',
+    loop_count INT COMMENT '循环次数',
+    condition_expression VARCHAR(500) COMMENT '条件表达式(CONDITION节点)',
+    db_operation VARCHAR(20) COMMENT '数据库操作类型(DB_READ/DB_WRITE: SELECT/INSERT/UPDATE/DELETE)',
+    target_table VARCHAR(100) COMMENT '目标表名(DB节点)',
+    api_url VARCHAR(500) COMMENT 'API地址(API_CALL节点)',
+    api_method VARCHAR(10) COMMENT 'API方法(GET/POST/PUT/DELETE)',
+    transform_type VARCHAR(30) COMMENT '转换类型(TRANSFORM节点)',
+    width INT COMMENT '节点宽度',
+    position_x DOUBLE COMMENT '画布X坐标',
+    position_y DOUBLE COMMENT '画布Y坐标',
+    physical_model_id VARCHAR(36) COMMENT '关联物理模型ID',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    KEY idx_orchestration_id (orchestration_id),
+    KEY idx_parent_id (parent_id),
+    KEY idx_node_type (node_type),
+    KEY idx_physical_model_id (physical_model_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='功能编排节点表';
+
+CREATE TABLE IF NOT EXISTS fo_node_method (
+    id VARCHAR(36) PRIMARY KEY COMMENT '主键ID',
+    node_id VARCHAR(36) NOT NULL COMMENT '节点ID',
+    method_id VARCHAR(36) NOT NULL COMMENT '业务方法ID',
+    physical_method_id VARCHAR(36) COMMENT '物理方法ID(可选，关联物理模型方法)',
+    sort_order INT DEFAULT 0 COMMENT '排序',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    UNIQUE KEY uk_node_method (node_id, method_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='功能编排节点方法绑定表';
+
+CREATE TABLE IF NOT EXISTS fo_node_config (
+    id VARCHAR(36) PRIMARY KEY COMMENT '主键ID',
+    node_id VARCHAR(36) NOT NULL COMMENT '节点ID',
+    config_key VARCHAR(100) NOT NULL COMMENT '配置键',
+    config_value TEXT COMMENT '配置值',
+    config_type VARCHAR(20) DEFAULT 'STRING' COMMENT '值类型(STRING/JSON/NUMBER/BOOLEAN)',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    UNIQUE KEY uk_node_config (node_id, config_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='功能编排节点配置表';

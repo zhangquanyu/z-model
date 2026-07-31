@@ -10,7 +10,9 @@ import {
   ArrowRight,
   FolderOpened,
   Share,
-  Connection
+  Connection,
+  Files,
+  Operation
 } from '@element-plus/icons-vue'
 import { ref, computed } from 'vue'
 
@@ -28,6 +30,14 @@ const menuItems = [
       { path: '/requirements', name: '需求管理', icon: Document },
       { path: '/models', name: '模型管理', icon: Box },
       { path: '/orchestrations', name: '业务编排', icon: Connection }
+    ]
+  },
+  { 
+    name: '技术处理', 
+    icon: Operation,
+    children: [
+      { path: '/physical-models', name: '物理模型', icon: Files },
+      { path: '/functional-orchestrations', name: '功能编排', icon: Share }
     ]
   }
 ]
@@ -110,6 +120,13 @@ const handleMenuSelect = (index: string) => {
             route.name === 'OrchestrationDetail' ? '编排详情' :
             route.name === 'OrchestrationDesign' ? '编排设计器' :
             route.name === 'OrchestrationEdit' ? '编排编辑' :
+            route.name === 'PhysicalModelList' ? '物理模型' :
+            route.name === 'PhysicalModelDetail' ? '物理模型详情' :
+            route.name === 'PhysicalPropertyList' ? '扩展属性管理' :
+            route.name === 'PhysicalMethodList' ? '扩展方法管理' :
+            route.name === 'FunctionalOrchestrationList' ? '功能编排' :
+            route.name === 'FunctionalOrchestrationDetail' ? '功能编排详情' :
+            route.name === 'FunctionalOrchestrationDesign' ? '功能编排设计器' :
             '页面' 
           }}</h1>
         </div>
